@@ -247,7 +247,7 @@ from crud_views.lib.crispy import (
     CrispyModelForm,
     CrispyDeleteForm,
     CrispyModelViewMixin,
-    Column2, Column4, Column8, Column12,   # Bootstrap grid column helpers
+    Column1, Column2, Column3, Column4, Column6, Column8, Column9, Column12,  # Bootstrap grid helpers
 )
 from crispy_forms.layout import Row, Layout
 
@@ -268,11 +268,17 @@ class MyForm(CrispyModelForm):
 
 ### Column grid reference
 
+Column classes map to Bootstrap `col-md-N` (N = 1–12):
+
 | Class | Bootstrap cols | Approx width |
 |-------|---------------|-------------|
+| `Column1` | 1/12 | ~8% |
 | `Column2` | 2/12 | ~17% |
+| `Column3` | 3/12 | ~25% |
 | `Column4` | 4/12 | ~33% |
+| `Column6` | 6/12 | 50% |
 | `Column8` | 8/12 | ~67% |
+| `Column9` | 9/12 | 75% |
 | `Column12` | 12/12 | 100% |
 
 ---
@@ -299,6 +305,76 @@ class MyListView(ListViewTableMixin, ListViewTableFilterMixin, ListViewPermissio
     table_class = MyTable
     filterset_class = MyFilter
     formhelper_class = MyFilterFormHelper
+```
+
+---
+
+## Formsets
+
+Use `FormSetMixin` on Create/Update views to manage nested inline records.
+
+```python
+from crud_views.lib.formsets import FormSet, FormSets, FormSetMixin, InlineFormSet
+
+class ItemFormSet(InlineFormSet):
+    model = Item
+    parent_model = Order
+    fk_name = "order"
+    fields = ["name", "quantity", "price"]
+    extra = 1
+
+    def get_helper_layout_fields(self):
+        return [Row(Column4("name"), Column4("quantity"), Column4("price"))]
+
+class OrderCreateView(FormSetMixin, CrispyModelViewMixin, CreateViewPermissionRequired):
+    cv_viewset = cv_order
+    form_class = OrderCreateForm
+    cv_formsets = FormSets(formsets={
+        "items": FormSet(
+            klass=ItemFormSet,
+            title="Order Items",
+            fields=["name", "quantity", "price"],
+            pk_field="id",
+            # children={"sub_items": FormSet(...)}  # optional nested formsets
+        )
+    })
+```
+
+Formsets support multi-level nesting via the `children` dict on `FormSet`.
+
+---
+
+## Polymorphic Models
+
+Two-step create flow for polymorphic models. Install with `pip install django-crud-views[polymorphic]`.
+
+```python
+# settings.py
+INSTALLED_APPS = [..., "crud_views_polymorphic"]
+
+# views.py
+from crud_views_polymorphic.lib import (
+    PolymorphicCreateSelectViewPermissionRequired,  # step 1: pick subtype
+    PolymorphicCreateViewPermissionRequired,         # step 2: fill form
+    PolymorphicUpdateViewPermissionRequired,
+    PolymorphicDetailViewPermissionRequired,
+)
+
+class AnimalCreateSelectView(PolymorphicCreateSelectViewPermissionRequired):
+    cv_viewset = cv_animal
+    cv_polymorphic_include = [Dog, Cat]  # whitelist (mutually exclusive with cv_polymorphic_exclude)
+
+class AnimalCreateView(PolymorphicCreateViewPermissionRequired):
+    cv_viewset = cv_animal
+    polymorphic_forms = {Dog: DogForm, Cat: CatForm}
+
+class AnimalUpdateView(PolymorphicUpdateViewPermissionRequired):
+    cv_viewset = cv_animal
+    polymorphic_forms = {Dog: DogForm, Cat: CatForm}
+
+class AnimalDetailView(PolymorphicDetailViewPermissionRequired):
+    cv_viewset = cv_animal
+    cv_property_display = [...]
 ```
 
 ---
@@ -367,16 +443,16 @@ from crud_views.lib.views import (
     ListViewTableMixin, ListViewTableFilterMixin,
 )
 from crud_views.lib.views.list import ListViewFilterFormHelper
-from crud_views.lib.views.form import CustomFormViewPermissionRequired
+from crud_views.lib.views.form import CustomFormViewPermissionRequired, CustomFormNoObjectViewPermissionRequired
 
 # Table
-from crud_views.lib.table import Table, UUIDLinkDetailColumn, LinkDetailColumn, LinkChildColumn
+from crud_views.lib.table import Table, UUIDLinkDetailColumn, LinkDetailColumn, LinkChildColumn, UUIDColumn
 from crud_views.lib.table.columns import NaturalDayColumn, NaturalTimeColumn
 
 # Forms / Crispy
 from crud_views.lib.crispy import (
     CrispyModelForm, CrispyDeleteForm, CrispyModelViewMixin,
-    Column2, Column4, Column8, Column12,
+    Column1, Column2, Column3, Column4, Column6, Column8, Column9, Column12,
 )
 
 # Crispy layout helpers (standard crispy-forms)
@@ -388,10 +464,21 @@ import django_filters
 # Tables (standard django-tables2)
 import django_tables2 as tables
 
+# Formsets
+from crud_views.lib.formsets import FormSet, FormSets, FormSetMixin, InlineFormSet
+
 # Workflow (django-crud-views[workflow])
-from crud_views_workflow.lib.mixins import WorkflowMixin
-from crud_views_workflow.lib.enums import WorkflowComment
+from crud_views_workflow.lib.mixins import WorkflowModelMixin
+from crud_views_workflow.lib.enums import WorkflowComment, BadgeEnum
 from crud_views_workflow.lib.forms import WorkflowForm
 from crud_views_workflow.lib.views import WorkflowView, WorkflowViewPermissionRequired
 from crud_views_workflow.models import WorkflowInfo  # audit log model
+
+# Polymorphic (django-crud-views[polymorphic])
+from crud_views_polymorphic.lib import (
+    PolymorphicCreateSelectView, PolymorphicCreateSelectViewPermissionRequired,
+    PolymorphicCreateView, PolymorphicCreateViewPermissionRequired,
+    PolymorphicUpdateView, PolymorphicUpdateViewPermissionRequired,
+    PolymorphicDetailView, PolymorphicDetailViewPermissionRequired,
+)
 ```

@@ -2,15 +2,16 @@
 
 ## Table of Contents
 1. [Installation](#installation)
-2. [Model Setup (WorkflowMixin)](#model-setup-workflowmixin)
+2. [Model Setup (WorkflowModelMixin)](#model-setup-workflowmodelmixin)
 3. [WorkflowComment Enum](#workflowcomment-enum)
-4. [WorkflowForm](#workflowform)
-5. [WorkflowView Classes](#workflowview-classes)
-6. [Configuration Attributes](#configuration-attributes)
-7. [on_transition Hook](#on_transition-hook)
-8. [WorkflowInfo (Audit Log)](#workflowinfo-audit-log)
-9. [Displaying State in Tables & Detail Views](#displaying-state-in-tables--detail-views)
-10. [Import Paths](#import-paths)
+4. [BadgeEnum](#badgeenum)
+5. [WorkflowForm](#workflowform)
+6. [WorkflowView Classes](#workflowview-classes)
+7. [Configuration Attributes](#configuration-attributes)
+8. [on_transition Hook](#on_transition-hook)
+9. [WorkflowInfo (Audit Log)](#workflowinfo-audit-log)
+10. [Displaying State in Tables & Detail Views](#displaying-state-in-tables--detail-views)
+11. [Import Paths](#import-paths)
 
 ---
 
@@ -37,14 +38,14 @@ python manage.py migrate
 
 ---
 
-## Model Setup (WorkflowMixin)
+## Model Setup (WorkflowModelMixin)
 
 ```python
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django_fsm import FSMField, transition
-from crud_views_workflow.lib.enums import WorkflowComment
-from crud_views_workflow.lib.mixins import WorkflowMixin
+from crud_views_workflow.lib.enums import WorkflowComment, BadgeEnum
+from crud_views_workflow.lib.mixins import WorkflowModelMixin
 
 class CampaignState(models.TextChoices):
     NEW = "new", _("New")
@@ -53,16 +54,18 @@ class CampaignState(models.TextChoices):
     CANCELED = "canceled", _("Cancelled")
     ERROR = "error", _("Error")
 
-class Campaign(WorkflowMixin, models.Model):
+class Campaign(WorkflowModelMixin, models.Model):
     # Required attributes
-    STATE_ENUM = CampaignState
+    STATE_CHOICES = CampaignState
     STATE_BADGES = {
-        CampaignState.NEW: "light",
-        CampaignState.ACTIVE: "info",
-        CampaignState.SUCCESS: "primary",
-        CampaignState.CANCELED: "warning",
-        CampaignState.ERROR: "danger",
+        CampaignState.NEW: BadgeEnum.LIGHT,
+        CampaignState.ACTIVE: BadgeEnum.INFO,
+        CampaignState.SUCCESS: BadgeEnum.PRIMARY,
+        CampaignState.CANCELED: BadgeEnum.WARNING,
+        CampaignState.ERROR: BadgeEnum.DANGER,
     }
+    # Optional: fallback badge for states not in STATE_BADGES (default: BadgeEnum.INFO)
+    STATE_BADGE_DEFAULT = BadgeEnum.SECONDARY
     # Optional: fallback comment requirement for transitions that omit "comment" from custom dict
     COMMENT_DEFAULT = WorkflowComment.OPTIONAL  # default: WorkflowComment.NONE
 
@@ -100,20 +103,21 @@ class Campaign(WorkflowMixin, models.Model):
         pass
 ```
 
-### WorkflowMixin Required Attributes
+### WorkflowModelMixin Required Attributes
 
 | Attribute | Description |
 |-----------|-------------|
-| `STATE_ENUM` | `models.TextChoices` subclass |
-| `STATE_BADGES` | Dict mapping state values → Bootstrap badge class (e.g. `"light"`, `"success"`, `"danger"`) |
+| `STATE_CHOICES` | `models.TextChoices` subclass |
+| `STATE_BADGES` | Dict mapping state values → `BadgeEnum` (e.g. `BadgeEnum.LIGHT`, `BadgeEnum.SUCCESS`) |
 
-### WorkflowMixin Optional Attributes
+### WorkflowModelMixin Optional Attributes
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
+| `STATE_BADGE_DEFAULT` | `BadgeEnum.INFO` | Fallback badge for states absent from `STATE_BADGES` |
 | `COMMENT_DEFAULT` | `WorkflowComment.NONE` | Fallback comment requirement when `custom["comment"]` is omitted |
 
-### WorkflowMixin Properties & Methods
+### WorkflowModelMixin Properties & Methods
 
 | Member | Description |
 |--------|-------------|
@@ -144,6 +148,27 @@ from crud_views_workflow.lib.enums import WorkflowComment
 | `WorkflowComment.REQUIRED` | Comment shown and mandatory |
 
 Set per-transition via `custom={"comment": WorkflowComment.REQUIRED}` in the `@transition` decorator.
+
+---
+
+## BadgeEnum
+
+```python
+from crud_views_workflow.lib.enums import BadgeEnum
+```
+
+`StrEnum` of Bootstrap contextual colours. Use as values in `STATE_BADGES`:
+
+| Value | String |
+|-------|--------|
+| `BadgeEnum.PRIMARY` | `"primary"` |
+| `BadgeEnum.SECONDARY` | `"secondary"` |
+| `BadgeEnum.SUCCESS` | `"success"` |
+| `BadgeEnum.DANGER` | `"danger"` |
+| `BadgeEnum.WARNING` | `"warning"` |
+| `BadgeEnum.INFO` | `"info"` |
+| `BadgeEnum.LIGHT` | `"light"` |
+| `BadgeEnum.DARK` | `"dark"` |
 
 ---
 
@@ -221,8 +246,8 @@ class CampaignWorkflowView(CrispyModelViewMixin, MessageMixin, WorkflowViewPermi
 | `E230` | `form_class` is set |
 | `E231` | `cv_transition_label` is not `None` |
 | `E232` | `cv_comment_label` is not `None` |
-| `E233` | Model extends `WorkflowMixin` |
-| `E234` | `STATE_ENUM` set on model |
+| `E233` | Model extends `WorkflowModelMixin` |
+| `E234` | `STATE_CHOICES` set on model |
 | `E235` | `STATE_BADGES` set on model |
 
 ---
@@ -306,10 +331,10 @@ class CampaignDetailView(DetailViewPermissionRequired):
 
 ```python
 # Model mixin
-from crud_views_workflow.lib.mixins import WorkflowMixin
+from crud_views_workflow.lib.mixins import WorkflowModelMixin
 
 # Enums
-from crud_views_workflow.lib.enums import WorkflowComment
+from crud_views_workflow.lib.enums import WorkflowComment, BadgeEnum
 
 # Form
 from crud_views_workflow.lib.forms import WorkflowForm

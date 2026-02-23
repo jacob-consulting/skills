@@ -1,6 +1,6 @@
 ---
 name: django-crud-views
-description: "Build Django CRUD interfaces using the django-crud-views package. Use when creating, reading, updating, or deleting model records with class-based views; when wiring up ViewSets, ListViews, DetailViews, CreateViews, UpdateViews, or DeleteViews; when configuring tables with django-tables2, filters with django-filter, or forms with django-crispy-forms; when implementing nested/child resources with ParentViewSet; when adding permission-required views; when integrating django-fsm state machine transitions with WorkflowView or WorkflowViewPermissionRequired; when adding workflow audit history to models with WorkflowMixin; or any time the codebase imports from crud_views.lib or crud_views_workflow."
+description: "Build Django CRUD interfaces using the django-crud-views package. Use when creating, reading, updating, or deleting model records with class-based views; when wiring up ViewSets, ListViews, DetailViews, CreateViews, UpdateViews, or DeleteViews; when configuring tables with django-tables2, filters with django-filter, or forms with django-crispy-forms; when implementing nested/child resources with ParentViewSet; when adding permission-required views; when integrating django-fsm state machine transitions with WorkflowView or WorkflowViewPermissionRequired; when adding workflow audit history to models with WorkflowModelMixin; when using formsets with FormSetMixin; when working with polymorphic models; or any time the codebase imports from crud_views.lib, crud_views_workflow, or crud_views_polymorphic."
 ---
 
 # django-crud-views
@@ -210,6 +210,73 @@ See [references/api-reference.md](references/api-reference.md) for full settings
 
 ---
 
+## Formsets (Inline Child Records)
+
+Use `FormSetMixin` on Create/Update views to manage nested inline formsets. Configure with `cv_formsets`.
+
+```python
+from crud_views.lib.formsets import FormSet, FormSets, FormSetMixin, InlineFormSet
+from crispy_forms.layout import Row
+
+class ItemFormSet(InlineFormSet):
+    model = Item
+    parent_model = Order
+    fk_name = "order"
+    fields = ["name", "quantity", "price"]
+    extra = 1
+
+    def get_helper_layout_fields(self):
+        return [Row(Column4("name"), Column4("quantity"), Column4("price"))]
+
+class OrderCreateView(FormSetMixin, CrispyModelViewMixin, CreateViewPermissionRequired):
+    cv_viewset = cv_order
+    form_class = OrderCreateForm
+    cv_formsets = FormSets(formsets={
+        "items": FormSet(
+            klass=ItemFormSet,
+            title="Order Items",
+            fields=["name", "quantity", "price"],
+            pk_field="id",
+        )
+    })
+```
+
+---
+
+## Polymorphic Models (`crud_views_polymorphic`)
+
+Two-step create flow for polymorphic models (requires `django-polymorphic`).
+
+Install: `pip install django-crud-views[polymorphic]`, add `"crud_views_polymorphic"` to `INSTALLED_APPS`.
+
+```python
+from crud_views_polymorphic.lib import (
+    PolymorphicCreateSelectViewPermissionRequired,  # step 1: choose subtype
+    PolymorphicCreateViewPermissionRequired,         # step 2: fill subtype form
+    PolymorphicUpdateViewPermissionRequired,
+    PolymorphicDetailViewPermissionRequired,
+)
+
+class AnimalCreateSelectView(PolymorphicCreateSelectViewPermissionRequired):
+    cv_viewset = cv_animal
+    # cv_polymorphic_include = [Dog, Cat]  # optional whitelist
+    # cv_polymorphic_exclude = [...]       # optional blacklist (mutually exclusive with include)
+
+class AnimalCreateView(PolymorphicCreateViewPermissionRequired):
+    cv_viewset = cv_animal
+    polymorphic_forms = {Dog: DogForm, Cat: CatForm}
+
+class AnimalUpdateView(PolymorphicUpdateViewPermissionRequired):
+    cv_viewset = cv_animal
+    polymorphic_forms = {Dog: DogForm, Cat: CatForm}
+
+class AnimalDetailView(PolymorphicDetailViewPermissionRequired):
+    cv_viewset = cv_animal
+    cv_property_display = [...]
+```
+
+---
+
 ## WorkflowView (FSM State Transitions)
 
 Integrates django-fsm-2 state machines with the CRUD framework. Provides transition execution, comment requirements, and a full audit log.
@@ -219,14 +286,15 @@ Full reference: see [references/workflow.md](references/workflow.md)
 ### Quick pattern
 
 ```python
-# 1. Model: mix in WorkflowMixin, define states and @transition methods
+# 1. Model: mix in WorkflowModelMixin, define states and @transition methods
 from django_fsm import FSMField, transition
-from crud_views_workflow.lib.enums import WorkflowComment
-from crud_views_workflow.lib.mixins import WorkflowMixin
+from crud_views_workflow.lib.enums import WorkflowComment, BadgeEnum
+from crud_views_workflow.lib.mixins import WorkflowModelMixin
 
-class MyModel(WorkflowMixin, models.Model):
-    STATE_ENUM = MyState          # TextChoices subclass
-    STATE_BADGES = {MyState.NEW: "light", MyState.DONE: "success"}
+class MyModel(WorkflowModelMixin, models.Model):
+    STATE_CHOICES = MyState       # TextChoices subclass
+    STATE_BADGES = {MyState.NEW: BadgeEnum.LIGHT, MyState.DONE: BadgeEnum.SUCCESS}
+    STATE_BADGE_DEFAULT = BadgeEnum.INFO  # fallback for states not in STATE_BADGES
     state = FSMField(default=MyState.NEW, choices=MyState.choices)
 
     @transition(field=state, source=MyState.NEW, target=MyState.DONE,
