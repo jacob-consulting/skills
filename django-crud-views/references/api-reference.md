@@ -387,4 +387,11 @@ import django_filters
 
 # Tables (standard django-tables2)
 import django_tables2 as tables
+
+# Workflow (django-crud-views[workflow])
+from crud_views_workflow.lib.mixins import WorkflowMixin
+from crud_views_workflow.lib.enums import WorkflowComment
+from crud_views_workflow.lib.forms import WorkflowForm
+from crud_views_workflow.lib.views import WorkflowView, WorkflowViewPermissionRequired
+from crud_views_workflow.models import WorkflowInfo  # audit log model
 ```

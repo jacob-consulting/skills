@@ -1,6 +1,6 @@
 ---
 name: django-crud-views
-description: "Build Django CRUD interfaces using the django-crud-views package. Use when creating, reading, updating, or deleting model records with class-based views; when wiring up ViewSets, ListViews, DetailViews, CreateViews, UpdateViews, or DeleteViews; when configuring tables with django-tables2, filters with django-filter, or forms with django-crispy-forms; when implementing nested/child resources with ParentViewSet; when adding permission-required views; or any time the codebase imports from crud_views.lib."
+description: "Build Django CRUD interfaces using the django-crud-views package. Use when creating, reading, updating, or deleting model records with class-based views; when wiring up ViewSets, ListViews, DetailViews, CreateViews, UpdateViews, or DeleteViews; when configuring tables with django-tables2, filters with django-filter, or forms with django-crispy-forms; when implementing nested/child resources with ParentViewSet; when adding permission-required views; when integrating django-fsm state machine transitions with WorkflowView or WorkflowViewPermissionRequired; when adding workflow audit history to models with WorkflowMixin; or any time the codebase imports from crud_views.lib or crud_views_workflow."
 ---
 
 # django-crud-views
@@ -207,3 +207,44 @@ CRUD_VIEWS = {
 ```
 
 See [references/api-reference.md](references/api-reference.md) for full settings and all ViewSet/view attributes.
+
+---
+
+## WorkflowView (FSM State Transitions)
+
+Integrates django-fsm-2 state machines with the CRUD framework. Provides transition execution, comment requirements, and a full audit log.
+
+Full reference: see [references/workflow.md](references/workflow.md)
+
+### Quick pattern
+
+```python
+# 1. Model: mix in WorkflowMixin, define states and @transition methods
+from django_fsm import FSMField, transition
+from crud_views_workflow.lib.enums import WorkflowComment
+from crud_views_workflow.lib.mixins import WorkflowMixin
+
+class MyModel(WorkflowMixin, models.Model):
+    STATE_ENUM = MyState          # TextChoices subclass
+    STATE_BADGES = {MyState.NEW: "light", MyState.DONE: "success"}
+    state = FSMField(default=MyState.NEW, choices=MyState.choices)
+
+    @transition(field=state, source=MyState.NEW, target=MyState.DONE,
+                custom={"label": "Complete", "comment": WorkflowComment.OPTIONAL})
+    def wf_complete(self, request=None, by=None, comment=None):
+        pass
+
+# 2. Form
+from crud_views_workflow.lib.forms import WorkflowForm
+class MyWorkflowForm(WorkflowForm):
+    class Meta(WorkflowForm.Meta):
+        model = MyModel
+
+# 3. View
+from crud_views_workflow.lib.views import WorkflowViewPermissionRequired
+class MyWorkflowView(CrispyModelViewMixin, MessageMixin, WorkflowViewPermissionRequired):
+    cv_viewset = cv_my
+    form_class = MyWorkflowForm
+```
+
+Install: `pip install django-crud-views[workflow]`, add `"crud_views_workflow.apps.CrudViewsWorkflowConfig"` to `INSTALLED_APPS`, run `migrate`.
