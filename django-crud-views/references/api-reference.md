@@ -8,8 +8,9 @@
 5. [Table & Columns](#table--columns)
 6. [Forms & Crispy](#forms--crispy)
 7. [Filtering](#filtering)
-8. [Settings](#settings)
-9. [Import Paths Cheatsheet](#import-paths-cheatsheet)
+8. [Formsets](#formsets)
+9. [Settings](#settings)
+10. [Import Paths Cheatsheet](#import-paths-cheatsheet)
 
 ---
 
@@ -78,18 +79,19 @@ from crud_views.lib.views import DetailViewPermissionRequired
 
 class MyDetailView(DetailViewPermissionRequired):
     cv_viewset = cv_my
-    cv_property_display = [
+    property_display = [
         {
             "title": "Group Title",   # required
-            "icon": "tag",            # optional: icon name
+            "icon": "tag",            # optional: short icon name (e.g. "tag", "book")
             "description": "...",    # optional: subtitle
             "properties": [
-                "field_name",                             # simple field or @property
-                {"path": "field", "title": "Label",      # full property config
+                "field_name",                                   # simple field or @property
+                {"path": "field", "title": "Label",             # full property config
                  "detail": "tooltip", "type": "str",
                  "link": "url-name", "badge": "success"},
-                "fk_field__sub_field",                   # FK traversal with __
-                "m2m_field",                             # ManyToMany
+                "fk_field__sub_field",                          # FK traversal with __
+                "author__country__name",                        # multi-hop FK
+                "m2m_field",                                    # ManyToMany
             ],
         },
     ]
@@ -97,6 +99,10 @@ class MyDetailView(DetailViewPermissionRequired):
 
 **Available layout packs** (set via `OBJECT_DETAIL_TEMPLATE_PACK_LAYOUT`):
 `split-card` (default), `accordion`, `tabs-vertical`, `card-rows`, `striped-rows`, `table-inline`, `list-group-3col`
+
+**Icon libraries** (set via `OBJECT_DETAIL_ICONS_LIBRARY`):
+- `"fontawesome"` — icon names like `"tag"`, `"book"`, `"circle-info"` (FA builds `fa-solid fa-tag`)
+- `"bootstrap"` (default) — icon names follow Bootstrap Icons conventions (`"book"` → `bi bi-book`)
 
 ### CreateView / CreateViewPermissionRequired
 
@@ -143,6 +149,33 @@ class MyDeleteView(CrispyModelViewMixin, MessageMixin, DeleteViewPermissionRequi
     cv_success_key = "list"
 ```
 
+### CustomFormView / CustomFormViewPermissionRequired
+
+Object-based custom form attached to an existing model instance. Use for contact forms, approval actions, etc.
+
+```python
+from crud_views.lib.views.form import CustomFormViewPermissionRequired
+
+class MyContactView(MessageMixin, CrispyModelViewMixin, CustomFormViewPermissionRequired):
+    cv_key = "contact"                   # unique key — auto-registers URL with the ViewSet
+    cv_path = "contact"                  # URL path segment
+    cv_icon_action = "fa-solid fa-envelope"
+    cv_viewset = cv_my
+    form_class = MyContactForm
+    cv_message_template_code = "Contacted »{object}«"
+    cv_context_actions = ["detail", "update", "contact"]
+    cv_header_template_code = "Contact"
+    cv_paragraph_template_code = "Send a message"
+    cv_success_key = "list"              # redirect after valid form (default: "list")
+
+    def cv_form_valid(self, context):
+        form = context["form"]           # bound, validated form
+        obj = context["object"]          # loaded model instance
+        # process form.cleaned_data here
+```
+
+`CustomFormNoObjectViewPermissionRequired` is the same but does not load a model object.
+
 ### ActionView / ActionViewPermissionRequired
 
 ```python
@@ -175,6 +208,7 @@ class MyDownView(MessageMixin, OrderedUpDownPermissionRequired):
 ```
 
 Add `"up"` and `"down"` to `cv_list_actions` in the list view.
+Model must extend `OrderedModel` and `ordered_model` must be in `INSTALLED_APPS`.
 
 ### RedirectChildView
 
@@ -207,7 +241,7 @@ Add `"redirect_child"` (or the specific cv_key) to `cv_list_actions`.
 
 ### Form Processing Hooks (CrudViewProcessFormMixin)
 
-Override these methods on create/update/delete views:
+Override these methods on create/update/delete/custom-form views:
 
 ```python
 def cv_post_hook(self, context): ...       # before validation
@@ -233,10 +267,19 @@ class MyTable(Table):
     child_count = LinkChildColumn(name="child", verbose_name="Children", attrs=Table.ca.w10)
     created_dt = NaturalDayColumn()    # "3 days ago"
     modified_dt = NaturalTimeColumn()  # "2 hours ago"
+    state = tables.Column(accessor="state_badge")   # for workflow state HTML badges
 ```
 
 **Table column attrs helpers** (shortcuts for Bootstrap column widths):
 `Table.ca.ID`, `Table.ca.w10`, `Table.ca.w20`, `Table.ca.w30`, `Table.ca.w40`
+
+| Column | Description |
+|--------|-------------|
+| `UUIDLinkDetailColumn` | UUID primary key → link to detail view |
+| `LinkDetailColumn` | Integer primary key → link to detail view |
+| `LinkChildColumn` | Link to a child ViewSet's list view |
+| `NaturalDayColumn` | Date as natural day ("today", "yesterday") |
+| `NaturalTimeColumn` | DateTime as natural time ("2 hours ago") |
 
 ---
 
@@ -350,7 +393,7 @@ Two-step create flow for polymorphic models. Install with `pip install django-cr
 
 ```python
 # settings.py
-INSTALLED_APPS = [..., "crud_views_polymorphic"]
+INSTALLED_APPS = [..., "polymorphic", "crud_views_polymorphic.apps.CrudViewsPolymorphicConfig"]
 
 # views.py
 from crud_views_polymorphic.lib import (
@@ -359,22 +402,35 @@ from crud_views_polymorphic.lib import (
     PolymorphicUpdateViewPermissionRequired,
     PolymorphicDetailViewPermissionRequired,
 )
+from crud_views_polymorphic.lib.create_select import PolymorphicContentTypeForm
+from crud_views_polymorphic.lib.delete import PolymorphicDeleteViewPermissionRequired
 
-class AnimalCreateSelectView(PolymorphicCreateSelectViewPermissionRequired):
-    cv_viewset = cv_animal
-    cv_polymorphic_include = [Dog, Cat]  # whitelist (mutually exclusive with cv_polymorphic_exclude)
+class VehicleCreateSelectView(CrispyModelViewMixin, PolymorphicCreateSelectViewPermissionRequired):
+    form_class = PolymorphicContentTypeForm
+    cv_viewset = cv_vehicle
+    # cv_polymorphic_include = [Car, Truck]  # whitelist (mutually exclusive with cv_polymorphic_exclude)
 
-class AnimalCreateView(PolymorphicCreateViewPermissionRequired):
-    cv_viewset = cv_animal
-    polymorphic_forms = {Dog: DogForm, Cat: CatForm}
+class VehicleCreateView(CrispyModelViewMixin, PolymorphicCreateViewPermissionRequired):
+    cv_viewset = cv_vehicle
+    polymorphic_forms = {Car: CarForm, Truck: TruckForm}
 
-class AnimalUpdateView(PolymorphicUpdateViewPermissionRequired):
-    cv_viewset = cv_animal
-    polymorphic_forms = {Dog: DogForm, Cat: CatForm}
+class VehicleUpdateView(CrispyModelViewMixin, PolymorphicUpdateViewPermissionRequired):
+    cv_viewset = cv_vehicle
+    polymorphic_forms = {Car: CarForm, Truck: TruckForm}
 
-class AnimalDetailView(PolymorphicDetailViewPermissionRequired):
-    cv_viewset = cv_animal
-    cv_property_display = [...]
+class VehicleDeleteView(CrispyModelViewMixin, PolymorphicDeleteViewPermissionRequired):
+    form_class = CrispyDeleteForm
+    cv_viewset = cv_vehicle
+
+class VehicleDetailView(PolymorphicDetailViewPermissionRequired):
+    cv_viewset = cv_vehicle
+    cv_property_display = [{"title": "Attributes", "properties": ["name"]}]
+
+# List view uses create_select instead of create:
+class VehicleListView(ListViewTableMixin, ListViewPermissionRequired):
+    cv_viewset = cv_vehicle
+    cv_list_actions = ["detail", "update", "delete"]
+    cv_context_actions = ["create_select"]
 ```
 
 ---
@@ -409,16 +465,22 @@ CRUD_VIEWS = {
     "UPDATE_CONTEXT_ACTIONS": ["home"],
     "DELETE_CONTEXT_ACTIONS": ["home"],
     "MANAGE_CONTEXT_ACTIONS": ["home"],
+    "CREATE_SELECT_CONTEXT_ACTIONS": ["home"],
 }
 ```
 
 ### django-object-detail settings (for DetailView)
+
+These are standard Django settings (not prefixed with `CRUD_VIEWS_`):
 
 ```python
 OBJECT_DETAIL_TEMPLATE_PACK_LAYOUT = "split-card"  # layout pack
 OBJECT_DETAIL_TEMPLATE_PACK_TYPES = "default"
 OBJECT_DETAIL_ICONS_LIBRARY = "fontawesome"         # "fontawesome" | "bootstrap"
 OBJECT_DETAIL_ICONS_TYPE = "regular"                # "solid" | "regular" (FA only)
+# OBJECT_DETAIL_ICONS_CLASS = "fa"                  # base CSS class
+# OBJECT_DETAIL_ICONS_PREFIX = "fa"                 # icon name prefix
+# OBJECT_DETAIL_NAMED_ICONS = {...}                 # dict mapping named icons
 ```
 
 ---
@@ -443,7 +505,10 @@ from crud_views.lib.views import (
     ListViewTableMixin, ListViewTableFilterMixin,
 )
 from crud_views.lib.views.list import ListViewFilterFormHelper
-from crud_views.lib.views.form import CustomFormViewPermissionRequired, CustomFormNoObjectViewPermissionRequired
+from crud_views.lib.views.form import (
+    CustomFormViewPermissionRequired,
+    CustomFormNoObjectViewPermissionRequired,
+)
 
 # Table
 from crud_views.lib.table import Table, UUIDLinkDetailColumn, LinkDetailColumn, LinkChildColumn, UUIDColumn
@@ -481,4 +546,6 @@ from crud_views_polymorphic.lib import (
     PolymorphicUpdateView, PolymorphicUpdateViewPermissionRequired,
     PolymorphicDetailView, PolymorphicDetailViewPermissionRequired,
 )
+from crud_views_polymorphic.lib.create_select import PolymorphicContentTypeForm
+from crud_views_polymorphic.lib.delete import PolymorphicDeleteViewPermissionRequired
 ```

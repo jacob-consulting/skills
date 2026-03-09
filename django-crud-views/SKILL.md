@@ -102,13 +102,39 @@ from crud_views.lib.views import DetailViewPermissionRequired
 
 class AuthorDetailView(DetailViewPermissionRequired):
     cv_viewset = cv_author
-    cv_property_display = [
+
+    property_display = [
         {
             "title": "Attributes",
             "icon": "tag",
-            "properties": ["first_name", "last_name", "pseudonym"],
+            "description": "Core author information",
+            "properties": [
+                "first_name",
+                "last_name",
+                {"path": "full_name", "detail": "Computed from first and last name"},
+                {"path": "id", "title": "UUID"},
+            ],
         },
     ]
+```
+
+Each entry in `properties` can be a plain string (field or `@property` name), a dict, or an `x()` helper
+from `django_object_detail`. Dict keys: `path` (required), `title`, `detail` (tooltip), `type`, `template`,
+`link`, `badge`. Use `__` for FK/M2M traversal: `"author__email"`, `"tags"`.
+
+Configure django-object-detail in settings:
+
+```python
+INSTALLED_APPS = [..., "django_object_detail", "crud_views", ...]
+
+# Layout pack: "split-card" (default), "accordion", "tabs-vertical", "card-rows",
+#              "striped-rows", "table-inline", "list-group-3col"
+OBJECT_DETAIL_TEMPLATE_PACK_LAYOUT = "split-card"
+OBJECT_DETAIL_TEMPLATE_PACK_TYPES = "default"
+
+# Icon library: "fontawesome" or "bootstrap" (default)
+OBJECT_DETAIL_ICONS_LIBRARY = "fontawesome"
+OBJECT_DETAIL_ICONS_TYPE = "solid"  # or "regular", "light", "thin", "duotone"
 ```
 
 ---
@@ -187,6 +213,46 @@ class AuthorDownView(MessageMixin, OrderedUpDownPermissionRequired):
 
 ---
 
+## Custom Form View
+
+`CustomFormView` attaches a custom form to an existing object — use for contact forms, approval actions, etc.
+
+```python
+from crud_views.lib.views.form import CustomFormViewPermissionRequired
+from crud_views.lib.views import MessageMixin
+from crud_views.lib.crispy import CrispyModelForm, CrispyModelViewMixin, Column12
+
+class AuthorContactForm(CrispyModelForm):
+    submit_label = "Send"
+    subject = CharField(label="Subject", required=True)
+    body = CharField(label="Body", required=True)
+    class Meta:
+        model = Author
+        fields = ["subject", "body"]
+    def get_layout_fields(self):
+        return Column12("subject"), Column12("body")
+
+class AuthorContactView(MessageMixin, CrispyModelViewMixin, CustomFormViewPermissionRequired):
+    cv_key = "contact"      # unique key — auto-registers URL with the ViewSet
+    cv_path = "contact"     # URL path segment
+    cv_icon_action = "fa-solid fa-envelope"
+    cv_viewset = cv_author
+    form_class = AuthorContactForm
+    cv_message_template_code = "Successfully contacted author »{object}«"
+    cv_context_actions = ["parent", "detail", "update", "delete", "contact"]
+    cv_header_template_code = "Contact Author"
+    cv_paragraph_template_code = "Send a message to the Author"
+
+    def cv_form_valid(self, context):
+        form = context["form"]
+        # process form.cleaned_data here
+        pass
+```
+
+Use `CustomFormNoObjectViewPermissionRequired` for forms not tied to a specific instance.
+
+---
+
 ## Custom Action View
 
 Subclass `ActionViewPermissionRequired` and implement `action(context)`. Register with a unique `cv_key` and
@@ -200,9 +266,16 @@ Subclass `ActionViewPermissionRequired` and implement `action(context)`. Registe
 CRUD_VIEWS = {
     "EXTENDS": "base.html",                    # required: base template
     "MANAGE_VIEWS_ENABLED": "debug_only",      # "yes" | "no" | "debug_only"
+    "SESSION_DATA_KEY": "viewset",
     "FILTER_PERSISTENCE": True,
+    "FILTER_ICON": "fa-solid fa-filter",
+    "FILTER_RESET_BUTTON_CSS_CLASS": "btn btn-secondary",
     "LIST_ACTIONS": ["detail", "update", "delete"],
     "LIST_CONTEXT_ACTIONS": ["parent", "filter", "create"],
+    "DETAIL_CONTEXT_ACTIONS": ["home", "update", "delete"],
+    "CREATE_CONTEXT_ACTIONS": ["home"],
+    "UPDATE_CONTEXT_ACTIONS": ["home"],
+    "DELETE_CONTEXT_ACTIONS": ["home"],
 }
 ```
 
@@ -247,7 +320,7 @@ class OrderCreateView(FormSetMixin, CrispyModelViewMixin, CreateViewPermissionRe
 
 Two-step create flow for polymorphic models (requires `django-polymorphic`).
 
-Install: `pip install django-crud-views[polymorphic]`, add `"crud_views_polymorphic"` to `INSTALLED_APPS`.
+Install: `pip install django-crud-views[polymorphic]`, add `"crud_views_polymorphic.apps.CrudViewsPolymorphicConfig"` to `INSTALLED_APPS`.
 
 ```python
 from crud_views_polymorphic.lib import (
@@ -256,24 +329,35 @@ from crud_views_polymorphic.lib import (
     PolymorphicUpdateViewPermissionRequired,
     PolymorphicDetailViewPermissionRequired,
 )
+from crud_views_polymorphic.lib.create_select import PolymorphicContentTypeForm
+from crud_views_polymorphic.lib.delete import PolymorphicDeleteViewPermissionRequired
 
-class AnimalCreateSelectView(PolymorphicCreateSelectViewPermissionRequired):
-    cv_viewset = cv_animal
-    # cv_polymorphic_include = [Dog, Cat]  # optional whitelist
-    # cv_polymorphic_exclude = [...]       # optional blacklist (mutually exclusive with include)
+class VehicleCreateSelectView(CrispyModelViewMixin, PolymorphicCreateSelectViewPermissionRequired):
+    form_class = PolymorphicContentTypeForm
+    cv_viewset = cv_vehicle
+    # cv_polymorphic_include = [Car, Truck]  # optional whitelist
+    # cv_polymorphic_exclude = [...]         # optional blacklist (mutually exclusive)
 
-class AnimalCreateView(PolymorphicCreateViewPermissionRequired):
-    cv_viewset = cv_animal
-    polymorphic_forms = {Dog: DogForm, Cat: CatForm}
+class VehicleCreateView(CrispyModelViewMixin, PolymorphicCreateViewPermissionRequired):
+    cv_viewset = cv_vehicle
+    polymorphic_forms = {Car: CarForm, Truck: TruckForm}
 
-class AnimalUpdateView(PolymorphicUpdateViewPermissionRequired):
-    cv_viewset = cv_animal
-    polymorphic_forms = {Dog: DogForm, Cat: CatForm}
+class VehicleUpdateView(CrispyModelViewMixin, PolymorphicUpdateViewPermissionRequired):
+    cv_viewset = cv_vehicle
+    polymorphic_forms = {Car: CarForm, Truck: TruckForm}
 
-class AnimalDetailView(PolymorphicDetailViewPermissionRequired):
-    cv_viewset = cv_animal
-    cv_property_display = [...]
+class VehicleDeleteView(CrispyModelViewMixin, PolymorphicDeleteViewPermissionRequired):
+    form_class = CrispyDeleteForm
+    cv_viewset = cv_vehicle
+
+class VehicleDetailView(PolymorphicDetailViewPermissionRequired):
+    cv_viewset = cv_vehicle
+    cv_property_display = [
+        {"title": "Attributes", "properties": ["name"]},
+    ]
 ```
+
+List view must use `cv_context_actions = ["create_select"]` instead of `"create"`.
 
 ---
 
@@ -287,32 +371,57 @@ Full reference: see [references/workflow.md](references/workflow.md)
 
 ```python
 # 1. Model: mix in WorkflowModelMixin, define states and @transition methods
+from django.db import models
 from django_fsm import FSMField, transition
 from crud_views_workflow.lib.enums import WorkflowComment, BadgeEnum
 from crud_views_workflow.lib.mixins import WorkflowModelMixin
 
-class MyModel(WorkflowModelMixin, models.Model):
-    STATE_CHOICES = MyState       # TextChoices subclass
-    STATE_BADGES = {MyState.NEW: BadgeEnum.LIGHT, MyState.DONE: BadgeEnum.SUCCESS}
-    STATE_BADGE_DEFAULT = BadgeEnum.INFO  # fallback for states not in STATE_BADGES
-    state = FSMField(default=MyState.NEW, choices=MyState.choices)
+class CampaignState(models.TextChoices):
+    NEW = "new", "New"
+    ACTIVE = "active", "Active"
+    DONE = "done", "Done"
 
-    @transition(field=state, source=MyState.NEW, target=MyState.DONE,
-                custom={"label": "Complete", "comment": WorkflowComment.OPTIONAL})
+class Campaign(WorkflowModelMixin, models.Model):
+    STATE_CHOICES = CampaignState
+    STATE_BADGES = {
+        CampaignState.NEW: BadgeEnum.LIGHT,
+        CampaignState.ACTIVE: BadgeEnum.INFO,
+        CampaignState.DONE: BadgeEnum.SUCCESS,
+    }
+    STATE_BADGE_DEFAULT = BadgeEnum.SECONDARY  # fallback for unmapped states
+    COMMENT_DEFAULT = WorkflowComment.NONE     # fallback when custom["comment"] omitted
+    state = FSMField(default=CampaignState.NEW, choices=CampaignState.choices)
+
+    @transition(field=state, source=CampaignState.NEW, target=CampaignState.ACTIVE,
+                on_error=CampaignState.DONE,
+                custom={"label": "Activate", "comment": WorkflowComment.NONE})
+    def wf_activate(self, request=None, by=None, comment=None):
+        pass
+
+    @transition(field=state, source=CampaignState.NEW, target=CampaignState.DONE,
+                on_error=CampaignState.DONE,
+                custom={"label": "Complete", "comment": WorkflowComment.REQUIRED})
     def wf_complete(self, request=None, by=None, comment=None):
         pass
 
 # 2. Form
 from crud_views_workflow.lib.forms import WorkflowForm
-class MyWorkflowForm(WorkflowForm):
+class CampaignWorkflowForm(WorkflowForm):
     class Meta(WorkflowForm.Meta):
-        model = MyModel
+        model = Campaign
 
 # 3. View
 from crud_views_workflow.lib.views import WorkflowViewPermissionRequired
-class MyWorkflowView(CrispyModelViewMixin, MessageMixin, WorkflowViewPermissionRequired):
-    cv_viewset = cv_my
-    form_class = MyWorkflowForm
+class CampaignWorkflowView(CrispyModelViewMixin, MessageMixin, WorkflowViewPermissionRequired):
+    cv_context_actions = ["list", "detail", "workflow"]
+    cv_viewset = cv_campaign
+    form_class = CampaignWorkflowForm
+
+    def on_transition(self, info, transition, state_old, state_new, comment, user, data):
+        # optional hook: runs after each successful transition
+        pass
 ```
+
+WorkflowComment values: `NONE` (hidden), `OPTIONAL` (shown, not required), `REQUIRED` (shown, mandatory).
 
 Install: `pip install django-crud-views[workflow]`, add `"crud_views_workflow.apps.CrudViewsWorkflowConfig"` to `INSTALLED_APPS`, run `migrate`.

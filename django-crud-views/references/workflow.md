@@ -47,12 +47,14 @@ from django_fsm import FSMField, transition
 from crud_views_workflow.lib.enums import WorkflowComment, BadgeEnum
 from crud_views_workflow.lib.mixins import WorkflowModelMixin
 
+
 class CampaignState(models.TextChoices):
     NEW = "new", _("New")
     ACTIVE = "active", _("Active")
     SUCCESS = "success", _("Success")
     CANCELED = "canceled", _("Cancelled")
     ERROR = "error", _("Error")
+
 
 class Campaign(WorkflowModelMixin, models.Model):
     # Required attributes
@@ -66,7 +68,7 @@ class Campaign(WorkflowModelMixin, models.Model):
     }
     # Optional: fallback badge for states not in STATE_BADGES (default: BadgeEnum.INFO)
     STATE_BADGE_DEFAULT = BadgeEnum.SECONDARY
-    # Optional: fallback comment requirement for transitions that omit "comment" from custom dict
+    # Optional: fallback comment requirement when custom["comment"] is omitted
     COMMENT_DEFAULT = WorkflowComment.OPTIONAL  # default: WorkflowComment.NONE
 
     name = models.CharField(max_length=128)
@@ -213,9 +215,11 @@ from .models import Campaign
 
 cv_campaign = ViewSet(model=Campaign, name="campaign")
 
+
 class CampaignWorkflowForm(WorkflowForm):
     class Meta(WorkflowForm.Meta):
         model = Campaign
+
 
 class CampaignWorkflowView(CrispyModelViewMixin, MessageMixin, WorkflowViewPermissionRequired):
     cv_context_actions = ["list", "detail", "workflow"]
@@ -306,20 +310,22 @@ Use `state_badge` (returns HTML) for display in tables and detail views:
 ```python
 import django_tables2 as tables
 from crud_views.lib.table import Table, LinkDetailColumn
+from django_object_detail import PropertyConfig
 
 class CampaignTable(Table):
     id = LinkDetailColumn()
     name = tables.Column()
     state = tables.Column(accessor="state_badge")   # renders HTML badge
 
+
 class CampaignDetailView(DetailViewPermissionRequired):
     cv_viewset = cv_campaign
-    cv_property_display = [
+    property_display = [
         {
             "title": "Campaign",
             "properties": [
                 "name",
-                {"path": "state_badge", "title": "State"},
+                PropertyConfig(path="state_badge", title="State"),
             ],
         },
     ]
