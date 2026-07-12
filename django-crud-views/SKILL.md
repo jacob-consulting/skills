@@ -103,7 +103,7 @@ from crud_views.lib.views import DetailViewPermissionRequired
 class AuthorDetailView(DetailViewPermissionRequired):
     cv_viewset = cv_author
 
-    property_display = [
+    cv_property_display = [
         {
             "title": "Attributes",
             "icon": "tag",
@@ -165,6 +165,39 @@ class BookCreateView(CrispyModelViewMixin, MessageMixin, CreateViewParentMixin, 
 ```
 
 URLs for `cv_book` must also be added: `urlpatterns += cv_book.urlpatterns`
+
+### Child Context Button
+
+Use `ChildContextButton` to add a context action on a parent's detail view that links to a child viewset (e.g. a
+"Books" button on the author detail page). This is the inverse of `ParentContextButton` (which navigates up).
+
+```python
+from crud_views.lib.view import ChildContextButton
+from crud_views.lib.viewset import ViewSet, context_buttons_default
+
+cv_author = ViewSet(
+    model=Author,
+    name="author",
+    context_buttons=context_buttons_default() + [
+        ChildContextButton(key="books", child_name="book", label_template_code="Books"),
+    ],
+)
+
+# Then reference the key in cv_context_actions on the detail view:
+class AuthorDetailView(DetailViewPermissionRequired):
+    cv_viewset = cv_author
+    cv_context_actions = ["update", "delete", "books"]
+```
+
+`ChildContextButton` parameters:
+- `key` — the action key referenced in `cv_context_actions`
+- `child_name` — name of the child viewset to link to
+- `child_key` — target view in the child viewset (default: `"list"`)
+- `label_template_code` — Django template string for the button label (optional)
+- `label_template` — path to a Django template for the button label (optional)
+
+Access control is handled automatically via the child view's `cv_has_access()`. For Guardian-based views, this
+checks object-level permissions on the parent object.
 
 ---
 
@@ -308,8 +341,8 @@ class OrderCreateView(FormSetMixin, CrispyModelViewMixin, CreateViewPermissionRe
         "items": FormSet(
             klass=ItemFormSet,
             title="Order Items",
-            fields=["name", "quantity", "price"],
-            pk_field="id",
+            # fields and pk_field are derived from klass; pass them only to override.
+            # form_show_labels=True,  # show crispy labels on inline rows (default False)
         )
     })
 ```
