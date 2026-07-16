@@ -438,4 +438,5 @@ with warnings.catch_warnings():
 ---
 
 See also, in the main [SKILL.md](../SKILL.md): Custom Form View, Custom Action
-View, and the Detail view (`cv_property_display`) sections.
+View, and DetailCustomView; and the property-grid Detail view (`cv_property_display`)
+walkthrough in [quickstart.md](quickstart.md).

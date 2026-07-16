@@ -71,6 +71,7 @@ class MyListView(ListViewTableMixin, ListViewPermissionRequired):
     cv_context_actions = ["parent", "filter", "create"]  # page-level action buttons
     paginate_by = 10
     cv_filter_persistence = True  # store filter state in session
+    cv_filter_pinned = False  # True = filter always open, toggle button hidden
 ```
 
 ### DetailView / DetailViewPermissionRequired
@@ -113,7 +114,7 @@ from crud_views.lib.views import CreateViewPermissionRequired
 class MyCreateView(CrispyModelViewMixin, MessageMixin, CreateViewPermissionRequired):
     cv_viewset = cv_my
     form_class = MyCreateForm
-    cv_message = "Created »{object}«"   # {object} replaced with str(instance)
+    cv_message_template_code = "Created »{{ object }}«"   # {{ object }} replaced with str(instance)
     cv_success_key = "list"              # redirect after success (default: "list")
     cv_context_actions = ["home"]
 ```
@@ -133,7 +134,7 @@ from crud_views.lib.views import UpdateViewPermissionRequired
 class MyUpdateView(CrispyModelViewMixin, MessageMixin, UpdateViewPermissionRequired):
     cv_viewset = cv_my
     form_class = MyUpdateForm
-    cv_message = "Updated »{object}«"
+    cv_message_template_code = "Updated »{{ object }}«"
     cv_success_key = "list"
 ```
 
@@ -146,15 +147,26 @@ from crud_views.lib.crispy import CrispyDeleteForm
 class MyDeleteView(CrispyModelViewMixin, MessageMixin, DeleteViewPermissionRequired):
     cv_viewset = cv_my
     form_class = CrispyDeleteForm   # built-in confirmation form
-    cv_message = "Deleted »{object}«"
+    cv_message_template_code = "Deleted »{{ object }}«"
     cv_success_key = "list"
+    cv_show_related_objects = True     # opt-in: show cascading deletes
+    cv_link_related_objects = False    # opt-in: link to detail views
+
+    def cv_check_delete_protection(self) -> list[str]:
+        """Return error messages to prevent deletion. Empty list = allowed."""
+        if self.object.has_active_contracts():
+            return ["Cannot delete: active contracts exist."]
+        return []
 ```
+
+`CrispyDeleteForm` provides a confirmation checkbox. Set `cv_show_related_objects = True` to display related objects that will be cascade-deleted. Override `cv_check_delete_protection()` for custom business logic — when it returns errors, the delete form is hidden and the errors are shown instead (runs on GET).
 
 ### CustomFormView / CustomFormViewPermissionRequired
 
 Object-based custom form attached to an existing model instance. Use for contact forms, approval actions, etc.
 
 ```python
+from crud_views.lib.views import MessageMixin
 from crud_views.lib.views.form import CustomFormViewPermissionRequired
 
 class MyContactView(MessageMixin, CrispyModelViewMixin, CustomFormViewPermissionRequired):
@@ -163,7 +175,7 @@ class MyContactView(MessageMixin, CrispyModelViewMixin, CustomFormViewPermission
     cv_icon_action = "fa-solid fa-envelope"
     cv_viewset = cv_my
     form_class = MyContactForm
-    cv_message_template_code = "Contacted »{object}«"
+    cv_message_template_code = "Contacted »{{ object }}«"
     cv_context_actions = ["detail", "update", "contact"]
     cv_header_template_code = "Contact"
     cv_paragraph_template_code = "Send a message"
@@ -182,34 +194,95 @@ class MyContactView(MessageMixin, CrispyModelViewMixin, CustomFormViewPermission
 ```python
 from crud_views.lib.views import ActionViewPermissionRequired
 
-class MyActionView(MessageMixin, ActionViewPermissionRequired):
+class MyActionView(ActionViewPermissionRequired):
     cv_key = "my_action"        # unique key for this view
     cv_path = "my-action"       # URL path segment
-    cv_icon_action = "fa-solid fa-bolt"
     cv_viewset = cv_my
+    cv_icon_action = "fa-solid fa-bolt"
+    cv_message_template_code = "Did the thing to »{{ object }}«"        # success message
+    cv_message_template_error_code = "Could not do the thing to »{{ object }}«"  # error message
 
     def action(self, context):
-        obj = context.object
-        # perform action on obj
-        obj.save()
+        obj = context["object"]
+        # perform action on obj; return True on success, False on failure
+        return True
 ```
+
+Messages are built in: a truthy `action()` result emits the success message, a falsy result
+emits the error message. Disable with `cv_action_messages = False` or by leaving the templates
+unset. `MessageMixin` is **not** needed for `ActionView`.
 
 ### OrderedUpView / OrderedDownView (requires django-ordered-model)
 
 ```python
 from crud_views.lib.views import OrderedUpViewPermissionRequired, OrderedUpDownPermissionRequired
 
-class MyUpView(MessageMixin, OrderedUpViewPermissionRequired):
+class MyUpView(OrderedUpViewPermissionRequired):
     cv_viewset = cv_my
-    cv_message = "Moved »{object}« up"
 
-class MyDownView(MessageMixin, OrderedUpDownPermissionRequired):
+class MyDownView(OrderedUpDownPermissionRequired):
     cv_viewset = cv_my
-    cv_message = "Moved »{object}« down"
 ```
 
-Add `"up"` and `"down"` to `cv_list_actions` in the list view.
-Model must extend `OrderedModel` and `ordered_model` must be in `INSTALLED_APPS`.
+The up/down views ship with default move messages and emit them automatically — no
+`MessageMixin` required. Override `cv_message_template_code` to customize, or set
+`cv_action_messages = False` to disable. Add `"up"` and `"down"` to `cv_list_actions` in the
+list view. Model must extend `OrderedModel` and `ordered_model` must be in `INSTALLED_APPS`.
+
+### CardListView / CardListViewPermissionRequired
+
+```python
+from crud_views.lib.view import CardAction
+from crud_views.lib.views import CardListViewPermissionRequired, ListViewTableFilterMixin
+
+class AuthorCardListView(ListViewTableFilterMixin, CardListViewPermissionRequired):
+    cv_viewset = cv_author
+    cv_card_template = "myapp/cards/author.html"     # custom card body template
+    cv_card_container_class = "col-md-12"             # full-width (default: "col-md-6")
+    filterset_class = AuthorFilter
+    formhelper_class = AuthorFilterFormHelper
+    cv_card_actions = [
+        CardAction(key="detail", label="Details", variant="primary", flex=True),
+        CardAction(key="update", label="Edit"),
+        CardAction(key="delete", no_label=True, variant="tertiary"),
+        # Child viewset link (like LinkChildColumn for tables):
+        CardAction(child_name="book", child_key="card", label="Books"),
+    ]
+```
+
+CardAction fields: `key` (view key in same viewset), `label`, `no_label` (icon-only), `variant` (`"primary"` / `"secondary"` / `"tertiary"`), `flex` (flex-grow-1), `child_name` (child viewset name), `child_key` (child view key, default `"list"`).
+
+#### CardListView ordering & paging
+
+- `cv_order_fields: list[str | tuple[str, str]]` — orderable fields; renders an
+  "Order by" combo + asc/desc toggle. String = field name (label from verbose_name);
+  tuple = `(name, label)`. The chosen field is whitelisted (no `order_by` injection).
+- `cv_order_default: str | None` — default ordering when no `order` param; leading `-`
+  = descending.
+- `cv_order_param` / `cv_order_dir_param` — GET param names (default `"order"` / `"dir"`).
+- `paginate_by: int | None` — Django pagination; renders a pagination nav whose links
+  preserve the active filter + order.
+
+Filter (`ListViewTableFilterMixin`), order, and page never override each other and are
+persisted together via `cv_filter_persistence`.
+
+Custom card template receives `object`, `view`, `request` in context. Use `{% cv_card_action action object %}` to render action buttons:
+
+```html
+{% load crud_views %}
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">{{ object }}</h5>
+        <div class="d-flex gap-2">
+            {% for action in view.cv_card_actions %}
+                {% cv_card_action action object %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+```
+
+Guardian variant: `GuardianCardListViewPermissionRequired` from `crud_views_guardian.lib.views`.
 
 ### RedirectChildView
 
@@ -259,11 +332,11 @@ SKILL.md for the full guide.
 
 ## Context Buttons
 
-Context buttons appear in the `cv_context_actions` area (typically top-right of a view). The ViewSet's `context_buttons` list controls which custom buttons are available. Default buttons: `home` (link to list), `parent` (link to parent viewset), `filter` (toggle filter form).
+Context buttons appear in the `cv_context_actions` area (typically top-right of a view). The ViewSet's `context_buttons` list controls which custom buttons are available. Default buttons: `home` (link to list), `parent` (link to parent viewset), `filter` (toggle filter form; hidden when `cv_filter_pinned` is set).
 
 ```python
 from crud_views.lib.viewset import context_buttons_default
-from crud_views.lib.view import ContextButton, ParentContextButton, ChildContextButton
+from crud_views.lib.view import ContextButton, ParentContextButton, ChildContextButton, SiblingContextButton
 ```
 
 ### ContextButton
@@ -318,6 +391,23 @@ class AuthorDetailView(DetailViewPermissionRequired):
     cv_context_actions = ["update", "delete", "books"]
 ```
 
+### SiblingContextButton
+
+On a child view, links to a sibling collection (another child of the same parent), reusing
+the parent PK from the URL.
+
+```python
+SiblingContextButton(
+    key="articles",                # action key referenced in cv_context_actions
+    sibling_name="article",        # registry name of the sibling viewset (same parent)
+    sibling_key="list",            # target view key in the sibling viewset (default: "list")
+)
+```
+
+Renders nothing on a parentless view; access checked model-level on the sibling view.
+
+A single view can also define its own buttons via `cv_context_buttons` (a list of `ContextButton`s); view-level buttons override ViewSet-level ones with the same key. Buttons still render only when their key is listed in `cv_context_actions`.
+
 ---
 
 ## Mixins
@@ -327,8 +417,16 @@ class AuthorDetailView(DetailViewPermissionRequired):
 | `ListViewTableMixin` | Render queryset as a django-tables2 table | `crud_views.lib.views` |
 | `ListViewTableFilterMixin` | Add django-filter filtering + session persistence | `crud_views.lib.views` |
 | `CrispyModelViewMixin` | Render form with crispy-forms | `crud_views.lib.crispy` |
-| `MessageMixin` | Show Django messages after actions; set `cv_message` | `crud_views.lib.views` |
+| `MessageMixin` | Show a Django message on form views after a successful save; set `cv_message_template` / `cv_message_template_code` (not needed for `ActionView`/ordered views, which emit messages built in) | `crud_views.lib.views` |
 | `CreateViewParentMixin` | Auto-assign parent FK on nested create | `crud_views.lib.views` |
+
+### Access and State Hooks (CrudView)
+
+| Hook | Kind | Signature | Default | Description |
+|------|------|-----------|---------|-------------|
+| `cv_has_access` | classmethod | `(cls, user, obj=None) -> bool` | permission check | Primary gate — "may this user perform this action at all?" Overridden by permission-required view variants. |
+| `cv_action_enabled` | classmethod | `(cls, user, obj=None) -> bool` | `True` | Secondary state gate — "is this action currently applicable to this object?" Evaluated only after `cv_has_access` passes. Hides the action button entirely and returns 403 for an authenticated direct request when `False`. `obj` is the target instance for object views (update/delete/detail/action) or the **parent** instance for a child-create view; resolved by `cv_get_action_object()`. |
+| `cv_get_action_object` | method | `(self) -> Model \| None` | — | Returns `get_object()` for object views, `cv_get_parent_object()` for child-create views, else `None`. Used internally by request enforcement. |
 
 ### Form Processing Hooks (CrudViewProcessFormMixin)
 
@@ -441,6 +539,8 @@ class MyListView(ListViewTableMixin, ListViewTableFilterMixin, ListViewPermissio
     formhelper_class = MyFilterFormHelper
 ```
 
+Set `cv_filter_pinned = True` to render the filter always-open and hide the toggle button (default from the `CRUD_VIEWS_FILTER_PINNED` setting). Field-value persistence is unaffected.
+
 ---
 
 ## Formsets
@@ -467,8 +567,8 @@ class OrderCreateView(FormSetMixin, CrispyModelViewMixin, CreateViewPermissionRe
         "items": FormSet(
             klass=ItemFormSet,
             title="Order Items",
-            # fields and pk_field are derived from klass; pass them only to override.
-            # form_show_labels=True,  # show crispy labels on inline rows (default False)
+            fields=["name", "quantity", "price"],
+            pk_field="id",
             # children={"sub_items": FormSet(...)}  # optional nested formsets
         )
     })
@@ -528,36 +628,37 @@ class VehicleListView(ListViewTableMixin, ListViewPermissionRequired):
 
 ## Settings
 
-All settings go under `CRUD_VIEWS` in `settings.py`:
+Settings are flat, module-level Django settings, each prefixed with `CRUD_VIEWS_`
+(read via `getattr(settings, "CRUD_VIEWS_<NAME>", default)`) — there is no `CRUD_VIEWS = {...}`
+dict. Only `CRUD_VIEWS_EXTENDS` is required; the rest show their defaults:
 
 ```python
-CRUD_VIEWS = {
-    # Required
-    "EXTENDS": "base.html",                    # base template to extend
+# Required
+CRUD_VIEWS_EXTENDS = "base.html"                       # base template to extend
 
-    # Manage view
-    "MANAGE_VIEWS_ENABLED": "debug_only",      # "yes" | "no" | "debug_only"
+# Manage view
+CRUD_VIEWS_MANAGE_VIEWS_ENABLED = "debug_only"         # "yes" | "no" | "debug_only"
 
-    # Session
-    "SESSION_DATA_KEY": "viewset",
+# Session
+CRUD_VIEWS_SESSION_DATA_KEY = "viewset"
 
-    # Filter
-    "FILTER_PERSISTENCE": True,
-    "FILTER_ICON": "fa-solid fa-filter",
-    "FILTER_RESET_BUTTON_CSS_CLASS": "btn btn-secondary",
+# Filter
+CRUD_VIEWS_FILTER_PERSISTENCE = True
+CRUD_VIEWS_FILTER_PINNED = False                       # True = filter always open, toggle hidden
+CRUD_VIEWS_FILTER_ICON = "fa-solid fa-filter"
+CRUD_VIEWS_FILTER_RESET_BUTTON_CSS_CLASS = "btn btn-secondary"
 
-    # Default per-row actions for list views
-    "LIST_ACTIONS": ["detail", "update", "delete"],
+# Default per-row actions for list views
+CRUD_VIEWS_LIST_ACTIONS = ["detail", "update", "delete"]
 
-    # Default page-level (context) actions per view type
-    "LIST_CONTEXT_ACTIONS": ["parent", "filter", "create"],
-    "DETAIL_CONTEXT_ACTIONS": ["home", "update", "delete"],
-    "CREATE_CONTEXT_ACTIONS": ["home"],
-    "UPDATE_CONTEXT_ACTIONS": ["home"],
-    "DELETE_CONTEXT_ACTIONS": ["home"],
-    "MANAGE_CONTEXT_ACTIONS": ["home"],
-    "CREATE_SELECT_CONTEXT_ACTIONS": ["home"],
-}
+# Default page-level (context) actions per view type
+CRUD_VIEWS_LIST_CONTEXT_ACTIONS = ["parent", "list", "filter", "create"]
+CRUD_VIEWS_DETAIL_CONTEXT_ACTIONS = ["home", "detail", "update", "delete"]
+CRUD_VIEWS_CREATE_CONTEXT_ACTIONS = ["home", "create"]
+CRUD_VIEWS_UPDATE_CONTEXT_ACTIONS = ["home", "detail", "update", "delete"]
+CRUD_VIEWS_DELETE_CONTEXT_ACTIONS = ["home", "detail", "update", "delete"]
+CRUD_VIEWS_MANAGE_CONTEXT_ACTIONS = ["home"]
+CRUD_VIEWS_CREATE_SELECT_CONTEXT_ACTIONS = ["home", "create_select"]
 ```
 
 ### django-object-detail settings (for DetailView)
@@ -584,6 +685,11 @@ from crud_views.lib.viewset import ViewSet, ParentViewSet, context_buttons_defau
 
 # Context Buttons
 from crud_views.lib.view import ContextButton, ParentContextButton, ChildContextButton
+
+# Card Views
+from crud_views.lib.view import CardAction
+from crud_views.lib.views import CardListView, CardListViewPermissionRequired
+from crud_views_guardian.lib.views import GuardianCardListViewPermissionRequired
 
 # Views
 from crud_views.lib.views import (
