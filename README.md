@@ -1,71 +1,57 @@
-# Claude Code Skills
+# jacob-consulting — Claude Code plugin marketplace
 
-A collection of skills for [Claude Code](https://github.com/anthropics/claude-code) that extend Claude with domain-specific knowledge and workflows.
+A [Claude Code](https://github.com/anthropics/claude-code) plugin marketplace of skills that
+extend Claude with domain-specific knowledge and workflows.
 
-## Repository Structure
-
-Each skill lives in its own directory:
+## Install
 
 ```
-skills/
-├── django-crud-views/
-│   ├── SKILL.md              # Main skill file (required)
-│   └── references/           # Optional supporting files
-│       └── api-reference.md
-└── your-skill/
-    └── SKILL.md
+/plugin marketplace add jacob-consulting/skills
+/plugin install django-crud-views@jacob-consulting
 ```
 
-### `SKILL.md` format
+Then start a new Claude Code session. Update later with `/plugin update django-crud-views@jacob-consulting`.
 
-Every skill requires a `SKILL.md` with a YAML frontmatter header:
+### Available plugins
 
-```markdown
----
-name: your-skill-name
-description: "When to use this skill. Claude reads this to decide whether to invoke it automatically."
----
+| Plugin | Description |
+|---|---|
+| `django-crud-views` | Build Django CRUD interfaces with the django-crud-views package — ViewSets, tables, filters, forms, workflows, per-object permissions, and non-ORM resources. |
 
-# Your Skill
+## Repository structure
 
-Skill content here — instructions, patterns, code examples, etc.
+This repo *is* the marketplace. Its root `.claude-plugin/marketplace.json` lists the plugins;
+each plugin lives under `plugins/` and bundles its skill(s) under its own `skills/` directory:
+
+```
+.claude-plugin/
+  marketplace.json                     # lists all plugins
+plugins/
+  django-crud-views/                   # a plugin
+    .claude-plugin/
+      plugin.json                      # name, version, description, author
+    skills/
+      django-crud-views/               # the skill Claude loads
+        SKILL.md                       # main skill file (required)
+        references/                    # supporting reference files
 ```
 
-The `description` field is important: Claude uses it to decide when to load and apply the skill automatically during a conversation.
+## Adding a new plugin
 
-## Installing a Skill Locally
+1. Create `plugins/<name>/` with a `.claude-plugin/plugin.json`
+   (`name`, `description`, `version`, `author`).
+2. Put the skill under `plugins/<name>/skills/<skill-name>/SKILL.md` (plus any `references/`).
+3. Add an entry to `plugins` in `.claude-plugin/marketplace.json` with a
+   `source: "./plugins/<name>"` (a plugin in another repo can instead use a `git-subdir` source).
+4. Bump the plugin's `version` in both `plugin.json` and the marketplace entry on each release.
 
-### Copy (one-time install)
+## Local development
+
+To edit a skill and see changes live without reinstalling, symlink it into your skills directory:
 
 ```bash
-cp -r django-crud-views ~/.claude/skills/
+ln -sfn "$(pwd)/plugins/django-crud-views/skills/django-crud-views" \
+        ~/.claude/skills/django-crud-views
 ```
 
-### Symlink (live development — changes in the repo are reflected immediately)
-
-```bash
-ln -s "$(pwd)/django-crud-views" ~/.claude/skills/django-crud-views
-```
-
-After installing, restart Claude Code or start a new session. Claude will automatically pick up installed skills from `~/.claude/skills/`.
-
-### Verify installation
-
-```bash
-ls ~/.claude/skills/
-```
-
-You should see your skill directory listed.
-
-## Developing a Skill
-
-1. Create a directory named after your skill.
-2. Add a `SKILL.md` with the YAML frontmatter and your skill content.
-3. Add any supporting reference files under a `references/` subdirectory and link to them from `SKILL.md`.
-4. Symlink to `~/.claude/skills/` as shown above, then test in a new Claude Code session.
-
-Use the `skill-creator` skill inside Claude Code for guided help writing effective skill content:
-
-```
-/skill-creator
-```
+Restart Claude Code or start a new session to pick up changes.

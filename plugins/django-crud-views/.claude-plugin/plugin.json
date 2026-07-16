@@ -1,0 +1,7 @@
+{
+  "name": "django-crud-views",
+  "description": "Build Django CRUD interfaces with the django-crud-views package — ViewSets, tables, filters, forms, workflows, per-object permissions, and non-ORM resources.",
+  "version": "0.1.0",
+  "author": { "name": "Alexander Jacob", "email": "alexander.jacob@jacob-consulting.de" },
+  "homepage": "https://github.com/jacob-consulting/skills"
+}

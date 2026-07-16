@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "jacob-consulting",
+  "owner": { "name": "Alexander Jacob", "email": "alexander.jacob@jacob-consulting.de" },
+  "metadata": { "description": "Skills and plugins by Jacob Consulting" },
+  "plugins": [
+    {
+      "name": "django-crud-views",
+      "version": "0.1.0",
+      "source": "./plugins/django-crud-views",
+      "description": "Build Django CRUD interfaces with the django-crud-views package — ViewSets, tables, filters, forms, workflows, per-object permissions, and non-ORM resources.",
+      "author": { "name": "Alexander Jacob", "email": "alexander.jacob@jacob-consulting.de" },
+      "category": "development",
+      "homepage": "https://github.com/jacob-consulting/skills"
+    }
+  ]
+}
