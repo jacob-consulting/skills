@@ -5,12 +5,22 @@ extend Claude with domain-specific knowledge and workflows.
 
 ## Install
 
+Add this marketplace, then install the plugin:
+
 ```
 /plugin marketplace add jacob-consulting/skills
 /plugin install django-crud-views@jacob-consulting
 ```
 
 Then start a new Claude Code session. Update later with `/plugin update django-crud-views@jacob-consulting`.
+
+> **Official directory** (pending review): once accepted into Anthropic's
+> [`claude-plugins-official`](https://github.com/anthropics/claude-plugins-official) marketplace,
+> the plugin can also be installed without adding this marketplace first:
+> ```
+> /plugin install django-crud-views@claude-plugins-official
+> ```
+> Same plugin — pick whichever marketplace you already have added.
 
 ### Available plugins
 
