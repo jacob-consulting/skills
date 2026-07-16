@@ -59,6 +59,8 @@ Full step-by-step: see [references/quickstart.md](references/quickstart.md)
 
 ## DetailCustomView
 
+*Available since 0.4.0.*
+
 Detail view without `ObjectDetailMixin` — full custom template control. Same `cv_key = "detail"` and
 `cv_path = "detail"` as `DetailView`. Use when you need complete layout control instead of structured
 `cv_property_display` groups.
@@ -108,6 +110,8 @@ template instead. Misconfigured templates are caught at startup as
 ---
 
 ## CardListView
+
+*Available since 0.4.0 (ordering, pagination, and filter coexistence since 0.6.0).*
 
 Render objects as cards instead of table rows. Uses `CardAction` for per-button config and `cv_card_template` for
 per-view card body overrides.
@@ -224,6 +228,8 @@ Execution order: GET checks `cv_check_delete_protection()` (hides form if errors
 
 ## Modal Views
 
+*Available since 0.11.0.*
+
 Opt a view into Bootstrap 5 modal rendering: its action buttons then open the view in a modal dialog
 (fetched in place, submitted without a full page reload) instead of navigating to a full page.
 
@@ -319,6 +325,8 @@ checks object-level permissions on the parent object.
 
 ### SiblingContextButton
 
+*Available since 0.7.0.*
+
 Use `SiblingContextButton` on a **child** view to link sideways to a **sibling** collection —
 another child of the same parent. It reuses the parent PK from the current URL. Pair it with
 `ChildContextButton`: `ChildContextButton` on the parent (go down), `SiblingContextButton` on the
@@ -352,6 +360,8 @@ Renders nothing on a view without a parent. Access is checked model-level on the
 view (no parent object is consulted).
 
 ### View-level context buttons (cv_context_buttons)
+
+*Available since 0.7.0.*
 
 Context buttons are normally defined on the ViewSet and shared by all its views. To define a
 button on a single view, set `cv_context_buttons` on the `CrudView`:
@@ -492,6 +502,8 @@ class AuthorArchiveView(ActionViewPermissionRequired):
 
 ## Conditionally Disabling an Action
 
+*Available since 0.6.0.*
+
 `cv_has_access` answers "may this user perform this action at all?" (permission check). `cv_action_enabled` is a
 secondary state gate that runs only after `cv_has_access` has passed — it answers "is this action currently
 applicable to this specific object?" When it returns `False`, the action button is **hidden entirely** and a direct
@@ -623,6 +635,8 @@ Access is controlled by CRUD_VIEWS_MANAGE_VIEWS_ENABLED ("yes"/"debug_only"/"no"
 
 ## Formsets (Inline Child Records)
 
+*Available since 0.5.0.*
+
 Use `FormSetMixin` on Create/Update views to manage nested inline formsets. Configure with `cv_formsets`.
 
 ```python
@@ -655,6 +669,8 @@ class OrderCreateView(FormSetMixin, CrispyModelViewMixin, CreateViewPermissionRe
 ---
 
 ## Polymorphic Models (`crud_views_polymorphic`)
+
+*Available since 0.5.0.*
 
 Two-step create flow for polymorphic models (requires `django-polymorphic`).
 
@@ -700,6 +716,8 @@ List view must use `cv_context_actions = ["create_select"]` instead of `"create"
 ---
 
 ## WorkflowView (FSM State Transitions)
+
+*Available since 0.5.0.*
 
 Integrates django-fsm-2 state machines with the CRUD framework. Provides transition execution, comment requirements, and a full audit log.
 
@@ -767,6 +785,8 @@ Install: `pip install django-crud-views[workflow]`, add `"crud_views_workflow.ap
 ---
 
 ## Per-Object Permissions (`crud_views_guardian`)
+
+*Available since 0.4.0 (strict mode became the default in 0.6.0).*
 
 Integrates [django-guardian](https://django-guardian.readthedocs.io/) for per-object permission checking and queryset filtering. Swap `ViewSet` → `GuardianViewSet` and `*ViewPermissionRequired` → `Guardian*ViewPermissionRequired`.
 
