@@ -135,6 +135,10 @@ URLs auto-register at `/<prefix>/card/`. `cv_card_actions` declares per-button r
 ViewSet, `label` overrides the default short label, `variant` sets the button style (`primary`/`secondary`/`tertiary`),
 `flex` makes the button fill available space, and `no_label` renders an icon-only button.
 
+A `CardAction` whose `key` targets a POST-only view (ordered up/down or any custom `ActionView`) or a modal-enabled
+view works automatically — the button renders a POST form / modal trigger derived from the target view, exactly like
+table-list actions. No extra `CardAction` config is needed (requires crud_views ≥ 0.15.0).
+
 Card views support ordering (`cv_order_fields` + direction toggle), Django pagination
 (`paginate_by`), and django-filter filtering — all coexisting and session-persistable.
 See `references/api-reference.md` for attributes.
