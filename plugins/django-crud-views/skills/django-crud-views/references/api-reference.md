@@ -588,7 +588,7 @@ Import all from `crud_views.lib.conditional`.
 |---|---|---|
 | `ToggleSource` | base | Base class; override `is_on(form)` |
 | `ModelFieldToggle(name)` | `False` | Toggle backed by a real model/form field |
-| `UIFieldToggle(name)` | `True` | Toggle backed by a transient checkbox auto-injected by the mixin |
+| `UIFieldToggle(name)` | `True` | Toggle backed by a transient checkbox — auto-injected by `ConditionalGroupFormMixin` for **groups only**; `ConditionalFormSet` toggles are **never** auto-injected |
 
 ### `ConditionalGroup`
 
@@ -629,7 +629,9 @@ ConditionalFormSet(
 
 Attach via `conditional=` on a first-level `FormSet`. `skip` leaves existing rows untouched when off; `purge` deletes them on save.
 
-**System checks:** `crud_views.E310` (on a nested formset), `crud_views.E311` (toggle field absent from parent form), `crud_views.W320` (cleared field not null/blank).
+The parent form must expose the toggle field itself (model field, or a manually declared `BooleanField(required=False)`, or a `UIFieldToggle` that a `ConditionalGroup` on the same form injects) — `ConditionalFormSet` never injects it. `purge` deletes rows even when the formset sets `can_delete=False`/`edit_only=True` (warned by `W321`); the save flow runs in one transaction, so a failed sibling save rolls a purge back.
+
+**System checks:** `crud_views.E310` (on a nested formset), `crud_views.E311` (toggle field absent from the parent form and not injected by a group on it), `crud_views.W320` (cleared field not null/blank), `crud_views.W321` (`purge` on a formset with `can_delete=False`/`edit_only=True`).
 
 ---
 

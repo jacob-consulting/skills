@@ -717,9 +717,11 @@ sessions=FormSet(
 )
 ```
 
-The parent-form toggle (`with_sessions`) governs the whole formset. `on_off="skip"` (default) leaves existing rows untouched when off; `on_off="purge"` deletes them on save. Only **first-level** formsets may be conditional (nested ⇒ check error `crud_views.E310`).
+The parent-form toggle (`with_sessions`) governs the whole formset. `on_off="skip"` (default) leaves existing rows untouched when off; `on_off="purge"` deletes them on save — permanently, even if the formset sets `can_delete=False`/`edit_only=True` (warned by `W321`); the save flow is transactional, so a failed sibling save rolls a purge back. Only **first-level** formsets may be conditional (nested ⇒ check error `crud_views.E310`).
 
-System checks: `crud_views.E310` (conditional on nested formset), `crud_views.E311` (toggle field missing from form), `crud_views.W320` (cleared field not null/blank).
+The form must expose the toggle field itself: **`ConditionalFormSet` toggles are never auto-injected** (only `ConditionalGroup` toggles are, via `ConditionalGroupFormMixin`). Use a model field, declare a `BooleanField(required=False)` on the form, or reuse a group-injected `UIFieldToggle`; a missing toggle is flagged by `E311` and would otherwise be permanently off.
+
+System checks: `crud_views.E310` (conditional on nested formset), `crud_views.E311` (toggle field missing from the form and not group-injected), `crud_views.W320` (cleared field not null/blank), `crud_views.W321` (`purge` on a formset forbidding row deletion).
 
 ---
 
