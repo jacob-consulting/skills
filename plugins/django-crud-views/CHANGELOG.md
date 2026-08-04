@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The plugin version is independent of the `django-crud-views` package it documents; per-feature
 `Available since X.Y.Z` markers in the skill track the package's release history.
 
+## [Unreleased]
+
 ## [0.2.0] — 2026-08-04
 
 Brings the skill up to date with `django-crud-views` 0.20.0. The 0.17.0 object-detail split had
@@ -68,4 +70,5 @@ Initial published release — the `django-crud-views` skill packaged as a Claude
   (`.claude-plugin/marketplace.json`) so the skill installs via
   `/plugin install django-crud-views@jacob-consulting`.
 
+[0.2.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.2.0
 [0.1.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.1.0
