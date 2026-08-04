@@ -10,6 +10,8 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-08-04
+
 ### Changed
 - Administrative version bump. The skill's content is unchanged from 0.2.0: `SKILL.md` and every
   file under `references/` are byte-identical, and no guidance, API coverage, or `Available since`
@@ -78,3 +80,4 @@ Initial published release — the `django-crud-views` skill packaged as a Claude
 
 [0.2.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.2.0
 [0.1.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.1.0
+[0.3.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.3.0
