@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The `validate` workflow now uses `actions/checkout@v5` and `actions/setup-python@v6`. The
+  previous pins were forced onto Node 24 with a deprecation warning, since Node 20 is no longer
+  supported on GitHub Actions runners.
+
 ### Fixed
 - `scripts/release.sh` no longer corrupts the changelog when it lacks a trailing newline; it now
   ensures a trailing newline before appending the `[X.Y.Z]:` link reference.
