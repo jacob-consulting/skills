@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-08-04
+
 ### Added
 - `scripts/validate.py` — checks manifests, changelogs, and skill frontmatter. Read-only.
 - `scripts/release.sh` — bumps a version, rolls the changelog, commits, and tags. Never pushes.
@@ -32,3 +34,4 @@ First versioned release of the marketplace itself.
   and had already drifted once.
 
 [1.0.0]: https://github.com/jacob-consulting/skills/releases/tag/marketplace--v1.0.0
+[1.1.0]: https://github.com/jacob-consulting/skills/releases/tag/marketplace--v1.1.0
