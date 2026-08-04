@@ -43,7 +43,7 @@ class AuthorListView(ListViewTableMixin, ListViewPermissionRequired):
 
 ```python
 from crispy_forms.layout import Row
-from crud_views.lib.crispy import Column4, CrispyModelForm, CrispyModelViewMixin
+from crud_views.lib.crispy import Column4, CrispyModelForm, CrispyViewMixin
 from crud_views.lib.views import CreateViewPermissionRequired, UpdateViewPermissionRequired, MessageMixin
 
 class AuthorCreateForm(CrispyModelForm):
@@ -57,12 +57,12 @@ class AuthorCreateForm(CrispyModelForm):
 class AuthorUpdateForm(AuthorCreateForm):
     submit_label = "Update"
 
-class AuthorCreateView(CrispyModelViewMixin, MessageMixin, CreateViewPermissionRequired):
+class AuthorCreateView(CrispyViewMixin, MessageMixin, CreateViewPermissionRequired):
     form_class = AuthorCreateForm
     cv_viewset = cv_author
     cv_message_template_code = "Created author »{{ object }}«"
 
-class AuthorUpdateView(CrispyModelViewMixin, MessageMixin, UpdateViewPermissionRequired):
+class AuthorUpdateView(CrispyViewMixin, MessageMixin, UpdateViewPermissionRequired):
     form_class = AuthorUpdateForm
     cv_viewset = cv_author
     cv_message_template_code = "Updated author »{{ object }}«"
@@ -74,7 +74,7 @@ class AuthorUpdateView(CrispyModelViewMixin, MessageMixin, UpdateViewPermissionR
 from crud_views.lib.crispy import CrispyDeleteForm
 from crud_views.lib.views import DeleteViewPermissionRequired
 
-class AuthorDeleteView(CrispyModelViewMixin, MessageMixin, DeleteViewPermissionRequired):
+class AuthorDeleteView(CrispyViewMixin, MessageMixin, DeleteViewPermissionRequired):
     form_class = CrispyDeleteForm
     cv_viewset = cv_author
     cv_message_template_code = "Deleted author »{{ object }}«"
@@ -83,9 +83,9 @@ class AuthorDeleteView(CrispyModelViewMixin, MessageMixin, DeleteViewPermissionR
 ## 6. Detail view
 
 ```python
-from crud_views.lib.views import DetailViewPermissionRequired
+from crud_views_object_detail.lib import ObjectDetailViewPermissionRequired
 
-class AuthorDetailView(DetailViewPermissionRequired):
+class AuthorDetailView(ObjectDetailViewPermissionRequired):
     cv_viewset = cv_author
 
     cv_property_display = [
@@ -103,21 +103,26 @@ class AuthorDetailView(DetailViewPermissionRequired):
     ]
 ```
 
-Each entry in `properties` can be a plain string (field or `@property` name), a dict, or an `x()` helper
-from `django_object_detail`. Dict keys: `path` (required), `title`, `detail` (tooltip), `type`, `template`,
-`link`, `badge`. Use `__` for FK/M2M traversal: `"author__email"`, `"tags"`.
+Each entry in `properties` can be a plain string (field or `@property` name), a dict, or the `x()`
+helper from `crud_views_object_detail.lib`. Dict keys: `path` (required), `title`, `detail` (tooltip),
+`type`, `template`, `link`, `badge`. Use `__` for FK/M2M traversal: `"author__email"`, `"tags"`.
 
-Configure django-object-detail in settings:
+The property grid lives in the separate `crud_views_object_detail` app (vendored in-tree since
+0.17.0 — there is no external `django-object-detail` dependency and no `django_object_detail` app):
 
 ```python
-INSTALLED_APPS = [..., "django_object_detail", "crud_views", ...]
+INSTALLED_APPS = [..., "crud_views_object_detail", "crud_views", ...]
 
 # Layout pack: "split-card" (default), "accordion", "tabs-vertical", "card-rows",
 #              "striped-rows", "table-inline", "list-group-3col"
-OBJECT_DETAIL_TEMPLATE_PACK_LAYOUT = "split-card"
-OBJECT_DETAIL_TEMPLATE_PACK_TYPES = "default"
+CRUD_VIEWS_OBJECT_DETAIL_TEMPLATE_PACK_LAYOUT = "split-card"
+CRUD_VIEWS_OBJECT_DETAIL_TEMPLATE_PACK_TYPES = "default"
 
-# Icon library: "fontawesome" or "bootstrap" (default)
-OBJECT_DETAIL_ICONS_LIBRARY = "fontawesome"
-OBJECT_DETAIL_ICONS_TYPE = "solid"  # or "regular", "light", "thin", "duotone"
+# Icon library: "bootstrap" (default) or "fontawesome"
+CRUD_VIEWS_OBJECT_DETAIL_ICONS_LIBRARY = "fontawesome"
+# Class/type/prefix default per library (bootstrap: bi / none / bi;
+# fontawesome: fa / regular / fa). Override only if needed:
+# CRUD_VIEWS_OBJECT_DETAIL_ICONS_TYPE = "solid"   # renders fa-solid
 ```
+
+Per-view layout override: `cv_object_detail_layout = "accordion"`.

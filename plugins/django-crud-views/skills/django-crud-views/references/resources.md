@@ -262,12 +262,12 @@ django-tables2 both operate on plain lists.
 
 ### Detail
 
-Resources use `DetailCustomView` (a fully custom template) rather than the
-property-grid `DetailView`, since there's no model field metadata to
+Resources use `DetailView` (a fully custom template) rather than the
+property-grid `ObjectDetailView`, since there's no model field metadata to
 introspect:
 
 ```python
-class S3FileDetailView(ResourceViewMixin, DetailCustomViewPermissionRequired):
+class S3FileDetailView(ResourceViewMixin, DetailViewPermissionRequired):
     cv_viewset = cv_s3file
     template_name = "app/s3file_detail.html"
 ```
@@ -291,12 +291,12 @@ There is no `DeleteView` port for Resources — `CustomFormView` plus a
 required before the `POST` is accepted):
 
 ```python
-from crud_views.lib.crispy import CrispyDeleteForm, CrispyModelViewMixin
+from crud_views.lib.crispy import CrispyDeleteForm, CrispyViewMixin
 from crud_views.lib.views import MessageMixin
 from crud_views.lib.views.form import CustomFormViewPermissionRequired
 
 
-class S3FileDeleteView(ResourceViewMixin, CrispyModelViewMixin, MessageMixin, CustomFormViewPermissionRequired):
+class S3FileDeleteView(ResourceViewMixin, CrispyViewMixin, MessageMixin, CustomFormViewPermissionRequired):
     cv_key = "delete"
     cv_path = "delete"
     cv_viewset = cv_s3file
@@ -438,5 +438,5 @@ with warnings.catch_warnings():
 ---
 
 See also, in the main [SKILL.md](../SKILL.md): Custom Form View, Custom Action
-View, and DetailCustomView; and the property-grid Detail view (`cv_property_display`)
+View, and Detail views; and the property-grid `ObjectDetailView` (`cv_property_display`)
 walkthrough in [quickstart.md](quickstart.md).

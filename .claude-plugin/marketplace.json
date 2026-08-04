@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "django-crud-views",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "source": "./plugins/django-crud-views",
       "description": "Build Django CRUD interfaces with the django-crud-views package — ViewSets, tables, filters, forms, workflows, per-object permissions, and non-ORM resources.",
       "author": { "name": "Alexander Jacob", "email": "alexander.jacob@jacob-consulting.de" },

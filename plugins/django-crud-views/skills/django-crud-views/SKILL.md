@@ -1,6 +1,6 @@
 ---
 name: django-crud-views
-description: "Build Django CRUD interfaces using the django-crud-views package. Use when creating, reading, updating, or deleting model records with class-based views; when wiring up ViewSets, ListViews, DetailViews, CreateViews, UpdateViews, or DeleteViews; when configuring tables with django-tables2, filters with django-filter, or forms with django-crispy-forms; when implementing nested/child resources with ParentViewSet; when adding permission-required views or per-object permissions with Guardian; when integrating django-fsm state machine transitions with WorkflowView or WorkflowViewPermissionRequired; when adding workflow audit history to models with WorkflowModelMixin; when using formsets with FormSetMixin; when working with polymorphic models; when displaying non-ORM or non-database data (S3 listings, external API results, config trees) in a ViewSet with Resource and ResourceViewMixin; or any time the codebase imports from crud_views.lib, crud_views_workflow, crud_views_polymorphic, or crud_views_guardian."
+description: "Build Django CRUD interfaces using the django-crud-views package. Use when wiring up ViewSets or List/Detail/Create/Update/Delete class-based views; configuring tables with django-tables2, filters with django-filter, or forms with django-crispy-forms; building nested/child resources with ParentViewSet; adding permission-required views or per-object permissions with Guardian; integrating django-fsm transitions with WorkflowView or WorkflowModelMixin; using formsets with FormSetMixin or conditional field-groups; rendering property grids with ObjectDetailView and cv_property_display; registering static assets, CSP nonces, or SRI hashes via register_assets; working with polymorphic models; showing non-ORM data (S3, external APIs) with Resource and ResourceViewMixin; diagnosing crud_views system checks such as viewset.W280; or when code imports crud_views, crud_views_object_detail, crud_views_workflow, crud_views_polymorphic, or crud_views_guardian."
 ---
 
 # django-crud-views
@@ -18,7 +18,8 @@ Full API reference: see [references/api-reference.md](references/api-reference.m
 | View class | Use for |
 |---|---|
 | `ListViewPermissionRequired` | Paginated list with table |
-| `DetailViewPermissionRequired` | Single-object display with property groups |
+| `DetailViewPermissionRequired` | Single-object display with your own template |
+| `ObjectDetailViewPermissionRequired` | Single-object property grid (`crud_views_object_detail`) |
 | `CreateViewPermissionRequired` | New object form |
 | `UpdateViewPermissionRequired` | Edit object form |
 | `DeleteViewPermissionRequired` | Confirm-delete form |
@@ -27,7 +28,7 @@ Full API reference: see [references/api-reference.md](references/api-reference.m
 | `CardListViewPermissionRequired` | Card grid with action buttons |
 | `WorkflowViewPermissionRequired` | FSM state transitions with audit log |
 
-Mixins always go **before** the base view class in MRO: `CrispyModelViewMixin, MessageMixin, CreateViewPermissionRequired`.
+Mixins always go **before** the base view class in MRO: `CrispyViewMixin, MessageMixin, CreateViewPermissionRequired`.
 
 ---
 
@@ -57,18 +58,25 @@ Full step-by-step: see [references/quickstart.md](references/quickstart.md)
 
 ---
 
-## DetailCustomView
+## Detail views: `DetailView` vs `ObjectDetailView`
 
-*Available since 0.4.0.*
+*Available since 0.4.0. **Restructured in 0.17.0** — see the migration note below.*
 
-Detail view without `ObjectDetailMixin` — full custom template control. Same `cv_key = "detail"` and
-`cv_path = "detail"` as `DetailView`. Use when you need complete layout control instead of structured
-`cv_property_display` groups.
+There are two detail views, and picking the wrong one is the most common mistake:
+
+| Want | Use | Lives in |
+|---|---|---|
+| Your own template, full layout control | `DetailViewPermissionRequired` | `crud_views.lib.views` |
+| Property grid from `cv_property_display` | `ObjectDetailViewPermissionRequired` | `crud_views_object_detail.lib` |
+
+Both share `cv_key = "detail"` / `cv_path = "detail"`, icons, snippets, and context actions.
+
+### `DetailView` — custom template
 
 ```python
-from crud_views.lib.views import DetailCustomViewPermissionRequired
+from crud_views.lib.views import DetailViewPermissionRequired
 
-class BookDetailView(DetailCustomViewPermissionRequired):
+class BookDetailView(DetailViewPermissionRequired):
     cv_viewset = cv_book
     template_name = "myapp/book_detail.html"
 ```
@@ -80,9 +88,76 @@ to get a permission-gated target URL (`None` when the user has no access or the 
 disabled), then gate your markup with `{% if url %}`. Use `{% cv_context_button "key" %}`
 instead when you want the library to render the full button markup.
 
-Guardian variant: `GuardianDetailCustomViewPermissionRequired`.
+Guardian variant: `GuardianDetailViewPermissionRequired`.
 
-`DetailCustomView` is the base class for `DetailView` — both share icons, snippets, and context actions.
+### `ObjectDetailView` — property grid
+
+Ships as a **separate app** that must be installed:
+
+```python
+INSTALLED_APPS = [..., "crud_views_object_detail", "crud_views", ...]
+```
+
+```python
+from crud_views_object_detail.lib import ObjectDetailViewPermissionRequired, x
+
+class BookDetailView(ObjectDetailViewPermissionRequired):
+    cv_viewset = cv_book
+    cv_object_detail_layout = "accordion"   # optional per-view layout override
+
+    cv_property_display = [
+        {
+            "title": "Attributes",
+            "icon": "tag",
+            "description": "Core book information",
+            "properties": [
+                "title",                                   # field or @property name
+                {"path": "isbn", "title": "ISBN"},         # dict form
+                x("author__email", title="Author email"),  # x() helper == PropertyConfig
+            ],
+        },
+    ]
+```
+
+Each `properties` entry is a plain string, a dict, or `x()` / `PropertyConfig`. Dict keys:
+`path` (required), `title`, `detail` (tooltip), `type`, `template`, `link`, `badge`.
+Use `__` for FK/M2M traversal (`"author__country__name"`, `"tags"`).
+
+`link` and `badge` each accept **either** a string shorthand or the full object:
+
+```python
+{"path": "state", "badge": "success"}                     # → BadgeConfig(color="success")
+{"path": "state", "badge": BadgeConfig(color_map={...})}  # full control
+{"path": "owner", "link": "author-detail"}                # → LinkConfig(url="author-detail")
+{"path": "owner", "link": LinkConfig(url="author-detail", kwargs={"pk": "owner.pk"})}
+```
+
+Startup checks: `E240` (`cv_property_display` not set), `E241` (set but not a list).
+
+Also exported from `crud_views_object_detail.lib`: `ObjectDetailMixin`, `ObjectDetailView`,
+`PropertyConfig`, `PropertyGroupConfig`, `LinkConfig`, `BadgeConfig`, `x`.
+
+**Polymorphic and Guardian detail views do not include the property grid.** Compose
+`ObjectDetailMixin` yourself:
+
+```python
+from crud_views_object_detail.lib import ObjectDetailMixin
+from crud_views_polymorphic.lib import PolymorphicDetailViewPermissionRequired
+
+class VehicleDetailView(ObjectDetailMixin, PolymorphicDetailViewPermissionRequired):
+    cv_viewset = cv_vehicle
+    cv_property_display = [{"title": "Attributes", "properties": ["name"]}]
+```
+
+### Migration from before 0.17.0
+
+| Removed / renamed | Replacement |
+|---|---|
+| `DetailCustomView` / `DetailCustomViewPermissionRequired` | `DetailView` / `DetailViewPermissionRequired` |
+| `GuardianDetailCustomViewPermissionRequired` | `GuardianDetailViewPermissionRequired` |
+| `DetailView` + `cv_property_display` | `ObjectDetailView` (add `crud_views_object_detail` to `INSTALLED_APPS`) |
+| external `django-object-detail` package / `django_object_detail` app | vendored in-tree; import from `crud_views_object_detail.lib` |
+| `OBJECT_DETAIL_*` settings | `CRUD_VIEWS_OBJECT_DETAIL_*` |
 
 ---
 
@@ -191,7 +266,7 @@ Guardian variant: `GuardianCardListViewPermissionRequired` filters the queryset 
 Show users what related objects will be cascade-deleted (like Django Admin). Opt-in via `cv_show_related_objects`:
 
 ```python
-class PublisherDeleteView(CrispyModelViewMixin, MessageMixin, DeleteViewPermissionRequired):
+class PublisherDeleteView(CrispyViewMixin, MessageMixin, DeleteViewPermissionRequired):
     form_class = CrispyDeleteForm
     cv_viewset = cv_publisher
     cv_show_related_objects = True       # show cascade-deleted objects
@@ -205,7 +280,7 @@ When enabled, the delete confirmation page shows a summary by type/count, a nest
 **View hook** — override `cv_check_delete_protection()` to return error messages. Runs on GET — the delete form is **not shown at all** when errors exist:
 
 ```python
-class PublisherDeleteView(CrispyModelViewMixin, MessageMixin, DeleteViewPermissionRequired):
+class PublisherDeleteView(CrispyViewMixin, MessageMixin, DeleteViewPermissionRequired):
     form_class = CrispyDeleteForm
     cv_viewset = cv_publisher
 
@@ -238,7 +313,7 @@ Opt a view into Bootstrap 5 modal rendering: its action buttons then open the vi
 (fetched in place, submitted without a full page reload) instead of navigating to a full page.
 
 ```python
-class AuthorDeleteView(CrispyModelViewMixin, MessageMixin, DeleteViewPermissionRequired):
+class AuthorDeleteView(CrispyViewMixin, MessageMixin, DeleteViewPermissionRequired):
     form_class = CrispyDeleteForm
     cv_viewset = cv_author
     cv_modal = True                 # opt in
@@ -284,7 +359,7 @@ cv_book = ViewSet(
     parent=ParentViewSet(name="author"),  # URL: /author/<author_pk>/book/
 )
 
-class BookCreateView(CrispyModelViewMixin, MessageMixin, CreateViewParentMixin, CreateViewPermissionRequired):
+class BookCreateView(CrispyViewMixin, MessageMixin, CreateViewParentMixin, CreateViewPermissionRequired):
     form_class = BookCreateForm
     cv_viewset = cv_book
 
@@ -442,7 +517,7 @@ class AuthorDownView(OrderedUpDownPermissionRequired):
 ```python
 from crud_views.lib.views import MessageMixin
 from crud_views.lib.views.form import CustomFormViewPermissionRequired
-from crud_views.lib.crispy import CrispyModelForm, CrispyModelViewMixin, Column12
+from crud_views.lib.crispy import CrispyModelForm, CrispyViewMixin, Column12
 
 class AuthorContactForm(CrispyModelForm):
     submit_label = "Send"
@@ -454,7 +529,7 @@ class AuthorContactForm(CrispyModelForm):
     def get_layout_fields(self):
         return Column12("subject"), Column12("body")
 
-class AuthorContactView(MessageMixin, CrispyModelViewMixin, CustomFormViewPermissionRequired):
+class AuthorContactView(MessageMixin, CrispyViewMixin, CustomFormViewPermissionRequired):
     cv_key = "contact"      # unique key — auto-registers URL with the ViewSet
     cv_path = "contact"     # URL path segment
     cv_icon_action = "fa-solid fa-envelope"
@@ -515,7 +590,7 @@ request to the URL returns 403 for an authenticated user. Override it as a class
 instance for object views (delete/update/detail/action) or the **parent** instance for a child-create view.
 
 ```python
-class PersonDeleteView(CrispyModelViewMixin, MessageMixin, DeleteViewPermissionRequired):
+class PersonDeleteView(CrispyViewMixin, MessageMixin, DeleteViewPermissionRequired):
     form_class = CrispyDeleteForm
     cv_viewset = cv_person
 
@@ -591,7 +666,7 @@ class S3FileListView(ResourceViewMixin, ListViewTableMixin, ListViewPermissionRe
 
 Toolbox → which view class (all prefixed with `ResourceViewMixin`):
 - **List** → `ListViewTableMixin` + `ListView*` (pagination/tables2 work on plain lists unchanged)
-- **Detail** → `DetailCustomView*` with your own `template_name` (not property-grid `DetailView` — no model fields to introspect)
+- **Detail** → `DetailView*` with your own `template_name` (not property-grid `ObjectDetailView` — no model fields to introspect)
 - **Delete-with-confirm** → `CustomFormView*` + `CrispyDeleteForm`; do the real delete in `cv_form_valid(self, context)`. There is no `DeleteView` port.
 - **Form-less action** → `ActionView*`; do the side effect in `action(self, context) -> bool`
 
@@ -683,11 +758,142 @@ CRUD_VIEWS_CREATE_CONTEXT_ACTIONS = ["home", "create"]
 CRUD_VIEWS_UPDATE_CONTEXT_ACTIONS = ["home", "detail", "update", "delete"]
 CRUD_VIEWS_DELETE_CONTEXT_ACTIONS = ["home", "detail", "update", "delete"]
 CRUD_VIEWS_BREADCRUMB_PREFIX = []                      # leading breadcrumb items, e.g. [{"title": "Home", "url_name": "home"}]
+CRUD_VIEWS_CSP_NONCE_ATTR = "csp_nonce"                # request attribute holding the CSP nonce
 ```
+
+Property-grid settings live in the separate `crud_views_object_detail` app and are prefixed
+`CRUD_VIEWS_OBJECT_DETAIL_` (renamed from bare `OBJECT_DETAIL_` in 0.17.0):
+
+```python
+CRUD_VIEWS_OBJECT_DETAIL_TEMPLATE_PACK_LAYOUT = "split-card"  # "accordion", "tabs-vertical",
+                                                              # "card-rows", "striped-rows",
+                                                              # "table-inline", "list-group-3col"
+CRUD_VIEWS_OBJECT_DETAIL_TEMPLATE_PACK_TYPES = "default"
+CRUD_VIEWS_OBJECT_DETAIL_ICONS_LIBRARY = "bootstrap"          # default; or "fontawesome"
+# The three below default per library — bootstrap: class "bi", no type, prefix "bi";
+# fontawesome: class "fa", type "regular", prefix "fa". Set only to override.
+# CRUD_VIEWS_OBJECT_DETAIL_ICONS_CLASS = "fa"
+# CRUD_VIEWS_OBJECT_DETAIL_ICONS_TYPE = "solid"               # suffix: fa-solid, fa-regular, ...
+# CRUD_VIEWS_OBJECT_DETAIL_ICONS_PREFIX = "fa"
+# CRUD_VIEWS_OBJECT_DETAIL_NAMED_ICONS = {...}                # override the named-icon map
+CRUD_VIEWS_OBJECT_DETAIL_PROPERTY_TEXT_NEWLINE = "linebreaksbr"
+```
+
+Reading the settings object directly: `crud_views_settings.as_dict` (renamed from `.dict` in
+0.20.0 — the old name shadowed the `dict` builtin and broke annotations under PEP 649 on
+Python 3.14).
 
 See [references/api-reference.md](references/api-reference.md) for full settings and all ViewSet/view attributes.
 
 Access is controlled by CRUD_VIEWS_MANAGE_VIEWS_ENABLED ("yes"/"debug_only"/"no") OR by adding users to the CRUD_VIEWS_MANAGE Django group (configurable via CRUD_VIEWS_MANAGE_GROUP setting). The group approach lets you grant selective access without changing deployment settings.
+
+---
+
+## Static assets, CSP, and SRI
+
+*Available since 0.18.0.*
+
+`{% cv_js %}` and `{% cv_css %}` render the package's own assets plus every bundle registered
+by an installed app. They emit external `<script src>` / `<link>` tags — no inline JS or CSS.
+
+Put both in the base template named by `CRUD_VIEWS_EXTENDS` — that is what makes a registered
+bundle render:
+
+```html
+{% load crud_views %}
+{% cv_css %}
+{% cv_js %}
+```
+
+The package emits **no inline `<script>` or `<style>` anywhere**, so it needs no
+`'unsafe-inline'`. `{% cv_config %}` (the modal shell) is markup only — a hidden `<div>`
+carrying `data-` attributes plus an empty modal container — so it needs no nonce. Modal
+content is fetched from the view's own URL, so `connect-src 'self'` suffices.
+
+### Contributing your own JS/CSS
+
+Call `register_assets()` from your `AppConfig.ready()` — once per key, or startup raises
+`ImproperlyConfigured`. Bundles render *after* core assets, in `INSTALLED_APPS` order.
+
+```python
+from django.apps import AppConfig
+from crud_views.lib.assets import Asset, register_assets
+
+class MyAppConfig(AppConfig):
+    name = "myapp"
+
+    def ready(self):
+        register_assets(
+            "myapp",                                  # unique key
+            js=["myapp/js/widget.js"],                # static paths
+            css=["myapp/css/widget.css"],
+            # emit=False registers the bundle without rendering it
+        )
+```
+
+Entries are static paths, external URLs (`http://`, `https://`, `//` — rendered verbatim),
+or `Asset` instances. Plain strings are normalized to `Asset` internally.
+
+### Subresource Integrity for CDN assets
+
+```python
+register_assets(
+    "myapp",
+    js=[Asset(
+        path="https://cdn.example.com/lib.min.js",
+        integrity="sha384-…",       # sha256-/sha384-/sha512- prefixed
+        # crossorigin defaults to "anonymous" when integrity is set
+    )],
+)
+```
+
+Two startup checks guard this: `crud_views.E330` (integrity value is not a
+`sha256-`/`sha384-`/`sha512-` hash) and `crud_views.W332` (integrity set on a same-origin
+static path — it breaks on every asset edit and buys no security).
+
+### Content-Security-Policy nonces
+
+Nonces are automatic — **no configuration needed** in the normal case. `cv_js`/`cv_css`
+resolve a nonce in this order and stamp `nonce="…"` on every tag they emit:
+
+1. `request.<CRUD_VIEWS_CSP_NONCE_ATTR>` — default `request.csp_nonce`, the django-csp convention
+2. Django 6.0's built-in CSP middleware (`django.middleware.csp.get_nonce`)
+3. a `csp_nonce` template-context variable
+
+Output is byte-identical to before when no CSP middleware is present. Only change
+`CRUD_VIEWS_CSP_NONCE_ATTR` (default `"csp_nonce"`) if your middleware stores the nonce
+under a different request attribute.
+
+> `AssetBundle.js` / `.css` hold `Asset` instances, not strings (changed in 0.18.0).
+> Code doing `bundle.js[0].startswith(...)` must use `bundle.js[0].path`.
+
+---
+
+## System check: unknown `cv_*` attributes (W280)
+
+*Available since 0.19.0.*
+
+`viewset.W280` warns when a view declares a `cv_*` data attribute that no `crud_views` class
+recognizes — a typo or an attribute left behind by a rename — with a "Did you mean …?" hint.
+Such attributes were previously ignored in silence.
+
+```
+viewset.W280: cv_message on <class 'myapp.views.BookCreateView'> is not a known
+crud_views attribute — it is silently ignored (dead attribute or typo).
+Did you mean cv_message_template_code?
+```
+
+Only non-callable data attributes are flagged, so your own `cv_*` methods and properties are
+safe. To keep an intentional custom data attribute, exempt it explicitly:
+
+```python
+class BookCreateView(CreateViewPermissionRequired):
+    cv_viewset = cv_book
+    cv_check_ignore_attributes = frozenset({"cv_my_custom_flag"})
+    cv_my_custom_flag = True
+```
+
+The allowlist is unioned across the MRO, so a mixin and the leaf view can each exempt their own.
 
 ---
 
@@ -711,7 +917,7 @@ class ItemFormSet(InlineFormSet):
     def get_helper_layout_fields(self):
         return [Row(Column4("name"), Column4("quantity"), Column4("price"))]
 
-class OrderCreateView(FormSetMixin, CrispyModelViewMixin, CreateViewPermissionRequired):
+class OrderCreateView(FormSetMixin, CrispyViewMixin, CreateViewPermissionRequired):
     cv_viewset = cv_order
     form_class = OrderCreateForm
     cv_formsets = FormSets(formsets={
@@ -797,25 +1003,26 @@ from crud_views_polymorphic.lib import (
 from crud_views_polymorphic.lib.create_select import PolymorphicContentTypeForm
 from crud_views_polymorphic.lib.delete import PolymorphicDeleteViewPermissionRequired
 
-class VehicleCreateSelectView(CrispyModelViewMixin, PolymorphicCreateSelectViewPermissionRequired):
+class VehicleCreateSelectView(CrispyViewMixin, PolymorphicCreateSelectViewPermissionRequired):
     form_class = PolymorphicContentTypeForm
     cv_viewset = cv_vehicle
     # cv_polymorphic_include = [Car, Truck]  # optional whitelist
     # cv_polymorphic_exclude = [...]         # optional blacklist (mutually exclusive)
 
-class VehicleCreateView(CrispyModelViewMixin, PolymorphicCreateViewPermissionRequired):
+class VehicleCreateView(CrispyViewMixin, PolymorphicCreateViewPermissionRequired):
     cv_viewset = cv_vehicle
     polymorphic_forms = {Car: CarForm, Truck: TruckForm}
 
-class VehicleUpdateView(CrispyModelViewMixin, PolymorphicUpdateViewPermissionRequired):
+class VehicleUpdateView(CrispyViewMixin, PolymorphicUpdateViewPermissionRequired):
     cv_viewset = cv_vehicle
     polymorphic_forms = {Car: CarForm, Truck: TruckForm}
 
-class VehicleDeleteView(CrispyModelViewMixin, PolymorphicDeleteViewPermissionRequired):
+class VehicleDeleteView(CrispyViewMixin, PolymorphicDeleteViewPermissionRequired):
     form_class = CrispyDeleteForm
     cv_viewset = cv_vehicle
 
-class VehicleDetailView(PolymorphicDetailViewPermissionRequired):
+# property grid on a polymorphic detail view requires ObjectDetailMixin (see Detail views above)
+class VehicleDetailView(ObjectDetailMixin, PolymorphicDetailViewPermissionRequired):
     cv_viewset = cv_vehicle
     cv_property_display = [
         {"title": "Attributes", "properties": ["name"]},
@@ -879,7 +1086,7 @@ class CampaignWorkflowForm(WorkflowForm):
 
 # 3. View
 from crud_views_workflow.lib.views import WorkflowViewPermissionRequired
-class CampaignWorkflowView(CrispyModelViewMixin, MessageMixin, WorkflowViewPermissionRequired):
+class CampaignWorkflowView(CrispyViewMixin, MessageMixin, WorkflowViewPermissionRequired):
     cv_context_actions = ["list", "detail", "workflow"]
     cv_viewset = cv_campaign
     form_class = CampaignWorkflowForm
@@ -985,7 +1192,7 @@ Setting either to `None` disables the parent check for that view type.
 When `cv_show_related_objects = True` on a Guardian delete view, related objects are filtered using per-object `view` permissions (via `guardian.shortcuts.get_objects_for_user`) instead of model-level permissions:
 
 ```python
-class PublisherDeleteView(CrispyModelViewMixin, GuardianDeleteViewPermissionRequired):
+class PublisherDeleteView(CrispyViewMixin, GuardianDeleteViewPermissionRequired):
     form_class = CrispyDeleteForm
     cv_viewset = cv_publisher
     cv_show_related_objects = True
@@ -1004,7 +1211,7 @@ To customise the manage view class for a specific viewset, pass `manage_view_cla
 
 | Mistake | Fix |
 |---|---|
-| Mixin after base view class | Mixins must come **before**: `CrispyModelViewMixin, MessageMixin, CreateViewPermissionRequired` |
+| Mixin after base view class | Mixins must come **before**: `CrispyViewMixin, MessageMixin, CreateViewPermissionRequired` |
 | Child viewset URLs missing | Every viewset needs `urlpatterns += cv_book.urlpatterns` separately |
 | FK not auto-assigned on child create | Add `CreateViewParentMixin` to the child create view |
 | Polymorphic list uses `"create"` | Use `cv_context_actions = ["create_select"]` instead |
@@ -1016,3 +1223,9 @@ To customise the manage view class for a specific viewset, pass `manage_view_cla
 | Related object links not rendering | Set `cv_link_related_objects = True` and ensure the related model has a ViewSet with a `detail` view |
 | `cv_modal` raises `viewset.E251` | Modal is phase-1 only: `DeleteView`, `DetailView`, `CustomFormView`, `CustomFormNoObjectView` (create/update/list not supported) |
 | `cv_modal_size` raises `viewset.E250` | Use an exact value: `""`, `"modal-sm"`, `"modal-lg"`, or `"modal-xl"` (not `"lg"`, `"large"`, etc.) |
+| `cv_property_display` renders nothing | Core `DetailView` has no property grid — use `ObjectDetailView`, or compose `ObjectDetailMixin` onto a polymorphic/guardian detail view |
+| `ImportError: No module named 'django_object_detail'` | Removed in 0.17.0; import from `crud_views_object_detail.lib` and add that app to `INSTALLED_APPS` |
+| `OBJECT_DETAIL_*` settings silently ignored | Renamed in 0.17.0 to `CRUD_VIEWS_OBJECT_DETAIL_*` |
+| Startup warns `viewset.W280` | A `cv_*` attribute no class recognizes — fix the typo, or allow it via `cv_check_ignore_attributes` |
+| Action-column CSS/test selectors broke in 0.20.0 | The `th`/`td` class changed from `d-flex justify-content-end` to `cv-col-action` (flex broke the row separator); the shipped `table.css` right-aligns with `text-align` |
+| `ImportError` on `import crud_views` | Since 0.20.0 a missing `django-filter` or `django-crispy-forms` fails immediately instead of later — both are required; fix the install |

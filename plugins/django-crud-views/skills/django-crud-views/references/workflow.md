@@ -206,7 +206,7 @@ Both inherit from `CustomFormView` and retrieve the object via the URL `pk` para
 ### Full view example
 
 ```python
-from crud_views.lib.crispy import CrispyModelViewMixin
+from crud_views.lib.crispy import CrispyViewMixin
 from crud_views.lib.views import MessageMixin
 from crud_views.lib.viewset import ViewSet
 from crud_views_workflow.lib.forms import WorkflowForm
@@ -221,7 +221,7 @@ class CampaignWorkflowForm(WorkflowForm):
         model = Campaign
 
 
-class CampaignWorkflowView(CrispyModelViewMixin, MessageMixin, WorkflowViewPermissionRequired):
+class CampaignWorkflowView(CrispyViewMixin, MessageMixin, WorkflowViewPermissionRequired):
     cv_context_actions = ["list", "detail", "workflow"]
     cv_viewset = cv_campaign
     form_class = CampaignWorkflowForm
@@ -261,7 +261,7 @@ class CampaignWorkflowView(CrispyModelViewMixin, MessageMixin, WorkflowViewPermi
 Override to run custom logic after a successful transition:
 
 ```python
-class CampaignWorkflowView(CrispyModelViewMixin, MessageMixin, WorkflowViewPermissionRequired):
+class CampaignWorkflowView(CrispyViewMixin, MessageMixin, WorkflowViewPermissionRequired):
     cv_viewset = cv_campaign
     form_class = CampaignWorkflowForm
 
@@ -310,7 +310,7 @@ Use `state_badge` (returns HTML) for display in tables and detail views:
 ```python
 import django_tables2 as tables
 from crud_views.lib.table import Table, LinkDetailColumn
-from django_object_detail import PropertyConfig
+from crud_views_object_detail.lib import ObjectDetailViewPermissionRequired, PropertyConfig
 
 class CampaignTable(Table):
     id = LinkDetailColumn()
@@ -318,7 +318,8 @@ class CampaignTable(Table):
     state = tables.Column(accessor="state_badge")   # renders HTML badge
 
 
-class CampaignDetailView(DetailViewPermissionRequired):
+# property grid → ObjectDetailView, not core DetailView (see SKILL.md "Detail views")
+class CampaignDetailView(ObjectDetailViewPermissionRequired):
     cv_viewset = cv_campaign
     cv_property_display = [
         {
