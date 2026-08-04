@@ -43,9 +43,15 @@ A plugin release does not bump the marketplace version, and vice versa.
 
 ### `scripts/validate.py`
 
-The shared invariant checker. Python 3 stdlib only — no dependencies, no lockfile, nothing to
-keep current. Run by CI, by `release.sh` as a preflight, and directly by a human. Exits non-zero
-with one line per violation.
+The shared invariant checker. Python 3, with **PyYAML as its only dependency** (needed by check 5
+— frontmatter is YAML, and YAML is not in the stdlib). Everything else it reads is JSON. Run by
+CI, by `release.sh` as a preflight, and directly by a human. Exits non-zero with one line per
+violation.
+
+The dependency is installed with `pip install pyyaml` — one step in CI, and it is already present
+in the maintainer's local environment. There is no requirements file or lockfile; a single
+unpinned dependency on a library this stable does not warrant one. If the import fails,
+`validate.py` exits with a clear message naming the install command rather than a traceback.
 
 Checks:
 
@@ -58,9 +64,15 @@ Checks:
 3. Each plugin's `CHANGELOG.md` contains a `## [<version>]` section matching its `plugin.json`
    version.
 4. `metadata.version` is semver, and the root `CHANGELOG.md` has a matching section.
-5. Every `SKILL.md` has YAML frontmatter with `name` and `description`, and the description is
-   ≤ 1024 characters. (The plugin's own 0.2.0 changelog records this limit being exceeded once
-   in a shipped release — it is worth checking mechanically.)
+5. Every `SKILL.md` has YAML frontmatter that parses, with `name` and `description` present, and
+   the description ≤ 1024 characters. (The plugin's own 0.2.0 changelog records this limit being
+   exceeded once in a shipped release — it is worth checking mechanically.)
+
+Check 5 parses the frontmatter with PyYAML rather than extracting it with a regex or with `awk`
+between the `---` markers. Text extraction handles the current file — a flat block with a
+single-line quoted `description` — but silently misreads a folded (`>`) or literal (`|`) block
+scalar, which skill frontmatter commonly uses. A length check that quietly under-reports on the
+exact construct that produces long descriptions would be worse than no check at all.
 
 Boundary: `validate.py` only reads and reports. It never writes, and knows nothing about git.
 
@@ -108,8 +120,8 @@ satisfy the once-only precondition after decision 1 removes the entry-level vers
 
 ### `.github/workflows/validate.yml`
 
-Runs `scripts/validate.py` on pull requests and pushes to `main`. No secrets, no write
-permissions, no repo mutation — it is purely a gate.
+On pull requests and pushes to `main`: check out, set up Python, `pip install pyyaml`, run
+`scripts/validate.py`. No secrets, no write permissions, no repo mutation — it is purely a gate.
 
 ### `RELEASING.md`
 
