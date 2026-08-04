@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-08-04
+
 ### Changed
 - The `validate` workflow now uses `actions/checkout@v5` and `actions/setup-python@v6`. The
   previous pins were forced onto Node 24 with a deprecation warning, since Node 20 is no longer
@@ -51,3 +53,4 @@ First versioned release of the marketplace itself.
 
 [1.0.0]: https://github.com/jacob-consulting/skills/releases/tag/marketplace--v1.0.0
 [1.1.0]: https://github.com/jacob-consulting/skills/releases/tag/marketplace--v1.1.0
+[1.2.0]: https://github.com/jacob-consulting/skills/releases/tag/marketplace--v1.2.0
