@@ -10,6 +10,12 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+### Changed
+- Administrative version bump. The skill's content is unchanged from 0.2.0: `SKILL.md` and every
+  file under `references/` are byte-identical, and no guidance, API coverage, or `Available since`
+  marker differs. Nothing about the plugin's behaviour changes for anyone who installs or updates
+  it.
+
 ## [0.2.0] — 2026-08-04
 
 Brings the skill up to date with `django-crud-views` 0.20.0. The 0.17.0 object-detail split had
