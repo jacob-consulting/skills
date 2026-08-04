@@ -98,7 +98,9 @@ def check_plugin(directory: Path):
             error(manifest_path, f"missing required field {field!r}")
     version = manifest.get("version")
     if version:
-        if not SEMVER.match(version):
+        if not isinstance(version, str):
+            error(manifest_path, f"version {version!r} is not a string")
+        elif not SEMVER.match(version):
             error(manifest_path, f"version {version!r} is not semver (X.Y.Z)")
         else:
             check_changelog(directory / "CHANGELOG.md", version)
@@ -116,6 +118,8 @@ def main() -> int:
         version = metadata.get("version")
         if not version:
             error(MARKETPLACE, "metadata.version is missing")
+        elif not isinstance(version, str):
+            error(MARKETPLACE, f"metadata.version {version!r} is not a string")
         elif not SEMVER.match(version):
             error(MARKETPLACE, f"metadata.version {version!r} is not semver (X.Y.Z)")
         else:
@@ -132,6 +136,9 @@ def main() -> int:
             source = entry.get("source")
             if not source:
                 error(MARKETPLACE, f"plugin entry {name!r} has no 'source'")
+                continue
+            if not isinstance(source, str):
+                error(MARKETPLACE, f"plugin entry {name!r} source {source!r} is not a string")
                 continue
             directory = (REPO_ROOT / source).resolve()
             if not (directory / ".claude-plugin" / "plugin.json").is_file():
