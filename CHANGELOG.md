@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `scripts/validate.py` — checks manifests, changelogs, and skill frontmatter. Read-only.
+- `scripts/release.sh` — bumps a version, rolls the changelog, commits, and tags. Never pushes.
+
 ## [1.0.0] — 2026-08-04
 
 First versioned release of the marketplace itself.
