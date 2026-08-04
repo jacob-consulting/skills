@@ -51,10 +51,9 @@ fi
 
 # ---- preflight -------------------------------------------------------------
 
-[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "version '${VERSION}' is not semver (X.Y.Z)"
+[[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || die "version '${VERSION}' is not semver (X.Y.Z)"
 
-git diff --quiet && git diff --cached --quiet \
-    || die "working tree is not clean; commit or stash first"
+[[ -z "$(git status --porcelain)" ]] || die "working tree is not clean; commit or stash first"
 
 echo "==> validating"
 python3 scripts/validate.py || die "validate.py failed; fix the problems above first"
@@ -96,7 +95,7 @@ WROTE="$(jq -r "${VERSION_PATH}" "$MANIFEST")"
 
 # Roll [Unreleased] into a dated release section, leaving a fresh empty one.
 NEW_VERSION="$VERSION" TODAY="$(date +%F)" perl -pi -e '
-    if (!$seen && s/^## \[Unreleased\].*$/## [Unreleased]\n\n## [$ENV{NEW_VERSION}] \x{2014} $ENV{TODAY}/) {
+    if (!$seen && s/^## \[Unreleased\].*$/## [Unreleased]\n\n## [$ENV{NEW_VERSION}] \xe2\x80\x94 $ENV{TODAY}/) {
         $seen = 1;
     }
 ' "$CHANGELOG"
