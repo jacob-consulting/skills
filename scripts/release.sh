@@ -100,6 +100,7 @@ NEW_VERSION="$VERSION" TODAY="$(date +%F)" perl -pi -e '
     }
 ' "$CHANGELOG"
 
+[[ -z "$(tail -c1 "$CHANGELOG")" ]] || printf '\n' >> "$CHANGELOG"
 printf '[%s]: %s/%s\n' "$VERSION" "$RELEASES_URL" "$TAG" >> "$CHANGELOG"
 
 echo "==> re-validating"

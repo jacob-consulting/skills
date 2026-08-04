@@ -137,6 +137,11 @@ def main() -> int:
             if not source:
                 error(MARKETPLACE, f"plugin entry {name!r} has no 'source'")
                 continue
+            if isinstance(source, dict):
+                # A remote source (e.g. git-subdir): the plugin's files aren't in this
+                # repo, so the local-directory checks below don't apply. The
+                # no-'version'-key check above still ran.
+                continue
             if not isinstance(source, str):
                 error(MARKETPLACE, f"plugin entry {name!r} source {source!r} is not a string")
                 continue

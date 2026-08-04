@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `scripts/release.sh` no longer corrupts the changelog when it lacks a trailing newline; it now
+  ensures a trailing newline before appending the `[X.Y.Z]:` link reference.
+- `scripts/validate.py` now accepts a marketplace entry whose `source` is a `git-subdir` object
+  (as documented in `README.md`) instead of hard-erroring on it. Local-directory checks are
+  skipped for such entries, but the "no `version` key" check still applies to them; non-string,
+  non-object sources are still a clean error.
+- `RELEASING.md` documents the bootstrap flow for a new plugin's first release (0.1.0), which
+  `scripts/release.sh` cannot cut, and lists the two steps its "What the release script does"
+  section had omitted (re-running `validate.py` before committing, and printing the diff).
+
 ## [1.1.0] — 2026-08-04
 
 ### Added

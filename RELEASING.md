@@ -13,6 +13,36 @@ A plugin release does not bump the marketplace version, and vice versa.
 `version` key — `scripts/validate.py` fails if one appears. This mirrors Anthropic's
 `claude-plugins-official` marketplace, whose plugin entries are versionless.
 
+## First release of a new plugin
+
+`scripts/release.sh` cannot cut a new plugin's `0.1.0`: its preflight runs `validate.py`, which
+requires the changelog to already document the version currently in `plugin.json` — true only
+once a version has already shipped. So the first release of a new plugin is hand-built, then
+`release.sh` takes over from the **second** release onward.
+
+1. Write the starting version (e.g. `0.1.0`) into `plugins/<name>/.claude-plugin/plugin.json`.
+2. Write the matching section into `plugins/<name>/CHANGELOG.md` by hand — the em dash + date
+   heading, plus the `[X.Y.Z]:` link reference at the bottom:
+
+   ```
+   ## [0.1.0] — 2026-08-04
+
+   ### Added
+   - Initial release.
+
+   [0.1.0]: https://github.com/jacob-consulting/skills/releases/tag/<name>--v0.1.0
+   ```
+
+3. Run `python3 scripts/validate.py` and fix anything it flags.
+4. Commit: `git commit -m "release(<name>): v0.1.0"`.
+5. Tag by hand — `release.sh` isn't involved yet, so nothing creates the tag for you:
+
+   ```bash
+   git tag -a <name>--v0.1.0 -m "<name> v0.1.0"
+   ```
+
+6. Publish: `git push origin <branch> --follow-tags`.
+
 ## Cutting a release
 
 Write what changed into the `## [Unreleased]` section of the relevant changelog as you work, then:
@@ -43,8 +73,10 @@ does not care which branch you are on. It never pushes.
 1. Rewrites the version in the manifest.
 2. Turns `## [Unreleased]` into `## [X.Y.Z] — <today>` and opens a fresh empty `## [Unreleased]`.
 3. Appends the `[X.Y.Z]:` link reference pointing at the release tag.
-4. Commits as `release(<target>): v<version>` and creates an annotated tag.
-5. Prints the push command and stops.
+4. Re-runs `python3 scripts/validate.py` to confirm the mutation left the repo valid.
+5. Prints the diff of the manifest and changelog.
+6. Commits as `release(<target>): v<version>` and creates an annotated tag.
+7. Prints the push command and stops.
 
 ## What CI checks
 
