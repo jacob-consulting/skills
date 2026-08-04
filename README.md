@@ -53,7 +53,10 @@ plugins/
 2. Put the skill under `plugins/<name>/skills/<skill-name>/SKILL.md` (plus any `references/`).
 3. Add an entry to `plugins` in `.claude-plugin/marketplace.json` with a
    `source: "./plugins/<name>"` (a plugin in another repo can instead use a `git-subdir` source).
-4. Bump the plugin's `version` in both `plugin.json` and the marketplace entry on each release.
+   Do **not** put a `version` in the entry — it belongs only in the plugin's own `plugin.json`.
+4. Add a `plugins/<name>/CHANGELOG.md` with a section for the plugin's current version.
+5. Run `python3 scripts/validate.py` to check all of the above, and see
+   [RELEASING.md](RELEASING.md) for how to cut releases.
 
 ## Local development
 

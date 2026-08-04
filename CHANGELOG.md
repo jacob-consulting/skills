@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `scripts/validate.py` — checks manifests, changelogs, and skill frontmatter. Read-only.
 - `scripts/release.sh` — bumps a version, rolls the changelog, commits, and tags. Never pushes.
+- `RELEASING.md` documenting the version topology and the release procedure.
+- A `validate` GitHub Actions workflow running the checker on pull requests and pushes to `main`.
+
+### Changed
+- `README.md` no longer instructs bumping the version in two files.
 
 ## [1.0.0] — 2026-08-04
 
