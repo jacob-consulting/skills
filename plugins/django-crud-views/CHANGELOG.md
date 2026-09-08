@@ -10,6 +10,11 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+### Added
+- **Dynamic cancel target** (package 0.21.0): `cv_cancel_keys`, `cv_get_cancel_key()`,
+  `CRUD_VIEWS_CANCEL_ORIGIN_PARAM`, checks `crud_views.E103` / `viewset.E252`; new SKILL.md
+  section "Cancel button target" and an api-reference table.
+
 ## [0.3.0] — 2026-08-04
 
 ### Changed

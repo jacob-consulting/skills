@@ -227,6 +227,29 @@ Override `cv_card_container_class` to control the Bootstrap grid width of each c
 ViewSets with only a `CardListView` (no `ListView`) automatically resolve `"list"` keys to `"card"`. No need to
 override `cv_success_key` or `cv_cancel_key` on sibling views.
 
+### Cancel button target
+
+*Available since 0.21.0.*
+
+The cancel button returns to `cv_cancel_key` (`"list"`). Set `cv_cancel_keys` to let it return
+to the sibling view the user came from instead:
+
+```python
+class AuthorUpdateView(CrispyViewMixin, MessageMixin, UpdateViewPermissionRequired):
+    cv_viewset = cv_author
+    form_class = AuthorForm
+    cv_cancel_keys = ["list", "detail"]   # dynamic; cv_cancel_key stays the fallback
+```
+
+Links into such a view carry the origin as a view key in the query string
+(`/author/<pk>/update/?cv_from=detail`); the parameter name is `CRUD_VIEWS_CANCEL_ORIGIN_PARAM`
+(default `cv_from`). Values that are malformed, not in `cv_cancel_keys`, unregistered, or that
+need an object the view lacks (e.g. `detail` on a create view) fall back to `cv_cancel_key`.
+The origin survives validation errors (forms post to `request.get_full_path`) and modal
+re-renders. Works on Create/Update/Delete/CustomForm views. In custom templates resolve the
+target with `{% cv_context_url view.cv_get_cancel_key as url %}`, not `view.cv_cancel_key`.
+Checks: `crud_views.E103` (bad parameter name), `viewset.E252` (unregistered key).
+
 ### Custom Card Template
 
 Override `cv_card_template` for model-specific card content:

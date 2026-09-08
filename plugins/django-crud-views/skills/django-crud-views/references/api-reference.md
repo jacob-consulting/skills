@@ -174,6 +174,8 @@ class MyUpdateView(CrispyViewMixin, MessageMixin, UpdateViewPermissionRequired):
     form_class = MyUpdateForm
     cv_message_template_code = "Updated »{{ object }}«"
     cv_success_key = "list"
+    cv_cancel_key = "list"               # cancel button target (default: "list")
+    cv_cancel_keys = ["list", "detail"]  # optional: return to the origin view instead (since 0.21.0)
 ```
 
 ### DeleteView / DeleteViewPermissionRequired
@@ -740,6 +742,9 @@ CRUD_VIEWS_MANAGE_VIEWS_ENABLED = "debug_only"         # "yes" | "no" | "debug_o
 # Session
 CRUD_VIEWS_SESSION_DATA_KEY = "viewset"
 
+# Cancel button (since 0.21.0)
+CRUD_VIEWS_CANCEL_ORIGIN_PARAM = "cv_from"             # query param carrying the origin view key; must match ^[a-z][a-z0-9_]*$ (crud_views.E103)
+
 # Filter
 CRUD_VIEWS_FILTER_PERSISTENCE = True
 CRUD_VIEWS_FILTER_PINNED = False                       # True = filter always open, toggle hidden
@@ -921,3 +926,17 @@ properties, and other descriptors are never flagged.
 
 Exempt intentional custom attributes with `cv_check_ignore_attributes` (a `frozenset[str]`);
 the allowlist is unioned across the MRO.
+
+## Dynamic cancel target (`cv_cancel_keys`)
+
+*Available since 0.21.0.*
+
+| Name | Where | Meaning |
+|---|---|---|
+| `cv_cancel_key` | view attribute, `str \| None`, default `"list"` | static cancel target |
+| `cv_cancel_keys` | view attribute, `list[str] \| None`, default `None` | origin keys the cancel button may return to; enables the feature |
+| `cv_get_cancel_key(obj=None)` | view method | resolved key: validated origin or `cv_cancel_key`; `obj` defaults to the view's object |
+| `cv_get_origin_key()` | view method | raw origin from the request, `None` if absent or not matching `^[a-z][a-z0-9_]*$` |
+| `cv_get_link_url(cls, key, obj=None)` | view method | sibling URL, with `?<param>=<own key>` when `cls.cv_cancel_keys` lists this view's key |
+| `CRUD_VIEWS_CANCEL_ORIGIN_PARAM` | setting, default `"cv_from"` | parameter name; `crud_views.E103` when invalid |
+| `viewset.E252` | system check | an entry of `cv_cancel_keys` is not a registered view key |
