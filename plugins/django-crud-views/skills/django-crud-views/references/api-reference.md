@@ -937,6 +937,6 @@ the allowlist is unioned across the MRO.
 | `cv_cancel_keys` | view attribute, `list[str] \| None`, default `None` | origin keys the cancel button may return to; enables the feature |
 | `cv_get_cancel_key(obj=None)` | view method | resolved key: validated origin or `cv_cancel_key`; `obj` defaults to the view's object |
 | `cv_get_origin_key()` | view method | raw origin from the request, `None` if absent or not matching `^[a-z][a-z0-9_]*$` |
-| `cv_get_link_url(cls, key, obj=None)` | view method | sibling URL, with `?<param>=<own key>` when `cls.cv_cancel_keys` lists this view's key |
+| `cv_get_link_url(cls, key, obj=None)` | view method | sibling URL, with `?<param>=<origin key>` when this view satisfies an entry of `cls.cv_cancel_keys` (a card page counts as `list` on a ViewSet without a list view); use it instead of `cv_get_url` in custom link builders |
 | `CRUD_VIEWS_CANCEL_ORIGIN_PARAM` | setting, default `"cv_from"` | parameter name; `crud_views.E103` when invalid |
 | `viewset.E252` | system check | an entry of `cv_cancel_keys` is not a registered view key |
