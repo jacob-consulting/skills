@@ -10,6 +10,8 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-14
+
 ### Added
 - **Dynamic cancel target** (package 0.21.0): `cv_cancel_keys`, `cv_get_cancel_key()`,
   `CRUD_VIEWS_CANCEL_ORIGIN_PARAM`, checks `crud_views.E103` / `viewset.E252`; new SKILL.md
@@ -91,3 +93,4 @@ Initial published release — the `django-crud-views` skill packaged as a Claude
 [0.2.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.2.0
 [0.1.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.1.0
 [0.3.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.3.0
+[0.4.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.4.0
