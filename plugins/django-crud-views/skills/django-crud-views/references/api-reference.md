@@ -227,7 +227,9 @@ class MyContactView(MessageMixin, CrispyViewMixin, CustomFormViewPermissionRequi
         # process form.cleaned_data here
 ```
 
-`CustomFormNoObjectViewPermissionRequired` is the same but does not load a model object.
+`CustomFormNoObjectViewPermissionRequired` is the same but does not load a model object. Its default
+`cv_context_actions` is `CRUD_VIEWS_CREATE_CONTEXT_ACTIONS` (since 0.21.0; earlier releases inherited the
+detail actions, which need an object, and crashed on GET).
 
 ### ActionView / ActionViewPermissionRequired
 

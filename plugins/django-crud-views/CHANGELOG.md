@@ -14,6 +14,11 @@ The plugin version is independent of the `django-crud-views` package it document
 - **Dynamic cancel target** (package 0.21.0): `cv_cancel_keys`, `cv_get_cancel_key()`,
   `CRUD_VIEWS_CANCEL_ORIGIN_PARAM`, checks `crud_views.E103` / `viewset.E252`; new SKILL.md
   section "Cancel button target" and an api-reference table.
+- Package 0.21.0 notes: theme overrides of the form content templates must post to
+  `request.get_full_path`; a `cv_get_link_url(view.cv_get_cls(key), key, obj)` example for custom
+  link builders; `CustomFormNoObjectView` now defaults to `CRUD_VIEWS_CREATE_CONTEXT_ACTIONS` (its
+  GET crash is fixed); the crispy cancel button on a `CustomFormView` targets the view's object.
+  Three new Common Mistakes rows.
 
 ## [0.3.0] — 2026-08-04
 

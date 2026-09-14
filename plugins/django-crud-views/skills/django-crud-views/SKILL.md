@@ -250,6 +250,16 @@ re-renders. Works on Create/Update/Delete/CustomForm views. In custom templates 
 target with `{% cv_context_url view.cv_get_cancel_key as url %}`, not `view.cv_cancel_key`.
 Checks: `crud_views.E103` (bad parameter name), `viewset.E252` (unregistered key).
 
+Theme overrides of `view_{create,update,delete,custom_form}.content.html` must use
+`action="{{ request.get_full_path }}"` — a form posting to `request.path` drops the origin, so
+cancel falls back to `cv_cancel_key` after a validation error. Custom link builders (table
+columns, theme tags) call `cv_get_link_url` with the target view class so the link carries the
+origin; plain `cv_get_url` never does:
+
+```python
+url = view.cv_get_link_url(view.cv_get_cls("update"), "update", obj=record)
+```
+
 ### Custom Card Template
 
 Override `cv_card_template` for model-specific card content:
@@ -1252,3 +1262,6 @@ To customise the manage view class for a specific viewset, pass `manage_view_cla
 | Startup warns `viewset.W280` | A `cv_*` attribute no class recognizes — fix the typo, or allow it via `cv_check_ignore_attributes` |
 | Action-column CSS/test selectors broke in 0.20.0 | The `th`/`td` class changed from `d-flex justify-content-end` to `cv-col-action` (flex broke the row separator); the shipped `table.css` right-aligns with `text-align` |
 | `ImportError` on `import crud_views` | Since 0.20.0 a missing `django-filter` or `django-crispy-forms` fails immediately instead of later — both are required; fix the install |
+| `cv_cancel_keys` origin lost after a validation error | An overridden `*.content.html` posts to `request.path`; use `request.get_full_path` (package templates switched in 0.21.0) |
+| `CustomFormNoObjectView` crashes on GET (before 0.21.0) | It inherited the detail actions, which need an object; 0.21.0 defaults to `CRUD_VIEWS_CREATE_CONTEXT_ACTIONS`. Upgrade — a `cv_context_actions` set only to dodge the crash can go |
+| Crispy cancel on a `CustomFormView` with `CrispyModelForm` links to a non-existent object (before 0.21.0) | It used the form's unsaved `instance`; fixed in 0.21.0 to use the view's object — upgrade, no code change |
