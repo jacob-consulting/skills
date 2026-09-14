@@ -10,6 +10,8 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-14
+
 ### Added
 - **Signed card ordering** (package 0.22.0): `cv_order_fields` entries prefixed with `-` / `+`
   encode the direction, render a single auto-submitting combo without asc/desc buttons and use
