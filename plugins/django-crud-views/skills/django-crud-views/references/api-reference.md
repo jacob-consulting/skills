@@ -296,12 +296,24 @@ CardAction fields: `key` (view key in same viewset), `label`, `no_label` (icon-o
 
 #### CardListView ordering & paging
 
-- `cv_order_fields: list[str | tuple[str, str]]` — orderable fields; renders an
-  "Order by" combo + asc/desc toggle. String = field name (label from verbose_name);
-  tuple = `(name, label)`. The chosen field is whitelisted (no `order_by` injection).
-- `cv_order_default: str | None` — default ordering when no `order` param; leading `-`
+- `cv_order_fields: list[str | tuple[str, str]]` — orderable fields. String = field name
+  (label from verbose_name); tuple = `(name, label)`. The chosen value is whitelisted (no
+  `order_by` injection). Two modes:
+  - plain names (`"name"`, `("price", "Price")`): "Order by" combo + asc/desc buttons,
+    `?order=name&dir=desc`;
+  - **signed** names (`("-created", "Newest first")`, `"+created"`, `"-title"`; 0.22.0): the
+    direction is in the choice, one combo that submits on change (no buttons),
+    `?order=-created`. One signed entry switches the list to signed mode; plain names then
+    mean ascending; ascending is emitted as the bare name (never `+name`); `dir` is
+    ignored; exact per-value whitelist; the combo preselects the active choice incl. the
+    default. Bare signed strings are auto-labelled "<Verbose name> (ascending|descending)"
+    via gettext.
+- `cv_order_default: str | None` — default ordering when no valid `order` param; leading `-`
   = descending.
-- `cv_order_param` / `cv_order_dir_param` — GET param names (default `"order"` / `"dir"`).
+- `cv_order_param` / `cv_order_dir_param` — GET param names (default `"order"` / `"dir"`);
+  `dir` is unused in signed mode.
+- `data-cv-action="submit-on-change"` (viewset.js, 0.22.0) — submits the enclosing form on
+  `change`; used by the signed order combo, reusable on any form control.
 - `paginate_by: int | None` — Django pagination; renders a pagination nav whose links
   preserve the active filter + order.
 

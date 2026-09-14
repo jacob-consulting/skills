@@ -214,9 +214,31 @@ A `CardAction` whose `key` targets a POST-only view (ordered up/down or any cust
 view works automatically — the button renders a POST form / modal trigger derived from the target view, exactly like
 table-list actions. No extra `CardAction` config is needed (requires crud_views ≥ 0.15.0).
 
-Card views support ordering (`cv_order_fields` + direction toggle), Django pagination
-(`paginate_by`), and django-filter filtering — all coexisting and session-persistable.
-See `references/api-reference.md` for attributes.
+Card views support ordering (`cv_order_fields`), Django pagination (`paginate_by`), and
+django-filter filtering — all coexisting and session-persistable. See `references/api-reference.md`
+for attributes.
+
+### Card ordering: signed choices vs direction buttons
+
+`cv_order_fields` has two shapes. Plain names render a combo plus asc/desc buttons
+(`?order=name&dir=desc`). Prefix an entry with `-` / `+` and the direction becomes part of the
+choice: one combo, no buttons, submits on change, `?order=-created` (available since 0.22.0):
+
+```python
+class RecipeCardListView(CardListViewPermissionRequired):
+    cv_viewset = cv_recipe
+    cv_order_fields = [
+        ("-created_dt", "Newest first"),
+        ("created_dt", "Oldest first"),   # plain name in a signed list == ascending
+        "-title",                         # auto-label: "Title (descending)" (translated)
+    ]
+    cv_order_default = "-created_dt"
+```
+
+Rules: one signed entry switches the whole list to signed mode; ascending is emitted as the bare
+name (never `+name` — a `+` in a query string decodes to a space); `dir` is ignored; the whitelist
+is exact per signed value (`?order=created_dt` is rejected when only `-created_dt` is declared);
+the combo preselects the active choice including the default.
 
 ### Card Container Class
 
@@ -1244,6 +1266,8 @@ To customise the manage view class for a specific viewset, pass `manage_view_cla
 
 | Mistake | Fix |
 |---|---|
+| Signed card ordering with `?order=+name` in a link | `+` decodes to a space in a query string; ascending is the bare name: `?order=name` (0.22.0) |
+| Expecting `dir=desc` to flip a signed card order | In signed mode the direction lives in the value (`?order=-name`); `dir` is ignored |
 | Mixin after base view class | Mixins must come **before**: `CrispyViewMixin, MessageMixin, CreateViewPermissionRequired` |
 | Child viewset URLs missing | Every viewset needs `urlpatterns += cv_book.urlpatterns` separately |
 | FK not auto-assigned on child create | Add `CreateViewParentMixin` to the child create view |
