@@ -10,6 +10,8 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-09-28
+
 ### Added
 - Package 0.23.0 notes: the core script `tooltip.js` (sixth `{% cv_js %}` asset) initialises the
   `card-rows` detail tooltip (`[data-cv-tooltip]`, `cv.initTooltips(root)`); where `detail` shows
@@ -114,3 +116,4 @@ Initial published release — the `django-crud-views` skill packaged as a Claude
 [0.3.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.3.0
 [0.4.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.4.0
 [0.5.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.5.0
+[0.6.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.6.0
