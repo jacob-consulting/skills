@@ -123,6 +123,13 @@ class MyDetailView(ObjectDetailViewPermissionRequired):
 via `cv_object_detail_layout`):
 `split-card` (default), `accordion`, `tabs-vertical`, `card-rows`, `striped-rows`, `table-inline`, `list-group-3col`
 
+**Where `detail` shows:** inline under/next to the value in every pack except `card-rows`, which
+puts it in a tooltip on an info-icon `<button data-cv-tooltip …>`. That tooltip is initialised by
+the core script `crud_views/js/tooltip.js` (emitted by `{% cv_js %}`; needs Bootstrap's JS) on
+page load and after modal content is injected — *since 0.23.0; before, it never showed*. For
+content you inject yourself, call `cv.initTooltips(rootElement)`. The script only touches
+`[data-cv-tooltip]`; your own `[data-bs-toggle="tooltip"]` elements stay yours to initialise.
+
 **Icon libraries** (set via `CRUD_VIEWS_OBJECT_DETAIL_ICONS_LIBRARY`):
 - `"bootstrap"` (default) — icon names follow Bootstrap Icons conventions (`"book"` → `bi bi-book`)
 - `"fontawesome"` — icon names like `"tag"`, `"book"`, `"circle-info"` (builds `fa-regular fa-tag` by default)
@@ -516,7 +523,13 @@ class MyTable(Table):
 ```
 
 **Table column attrs helpers** (shortcuts for Bootstrap column widths):
-`Table.ca.ID`, `Table.ca.w10`, `Table.ca.w20`, `Table.ca.w30`, `Table.ca.w40`
+`Table.ca.ID`, `Table.ca.w5` … `Table.ca.w100` (steps of 5), `Table.ca.action`
+
+They are `ColumnAttrs` and combine with `|` — nested dicts merge, `class` values are joined
+without duplicates: `attrs=Table.ca.w10 | ColumnAttrs.td_class("text-end")`
+(`from crud_views.lib.table.attrs import ColumnAttrs`). `|` returns a new object and leaves both
+operands untouched *since 0.23.0* — before, it modified the shared preset, so every later column
+using e.g. `Table.ca.w10` picked up the extra classes.
 
 | Column | Description |
 |--------|-------------|
@@ -918,7 +931,9 @@ from crud_views.lib.settings import crud_views_settings
 | `AssetBundle` | `key`, `js`, `css`, `emit` | `js`/`css` are tuples of `Asset` — **not strings** (changed in 0.18.0; use `.path`). |
 | `get_registered` | `(only_emitting=False)` | Bundles in registration order (= `INSTALLED_APPS` order). |
 
-`{% cv_js %}` / `{% cv_css %}` render core assets, then each emitting bundle. External URLs
+`{% cv_js %}` / `{% cv_css %}` render core assets, then each emitting bundle. Core JS
+(`crud_views_settings.javascript()`): `viewset.js`, `formset.js`, `list.filter.js`, `modal.js`,
+`toggle.js`, `tooltip.js` (0.23.0) — six `<script>` tags, each carrying the CSP nonce. External URLs
 (`http://`, `https://`, `//`) pass through verbatim; other paths resolve via `static()`.
 
 **CSP nonce resolution order:** `request.<CRUD_VIEWS_CSP_NONCE_ATTR>` → Django 6.0

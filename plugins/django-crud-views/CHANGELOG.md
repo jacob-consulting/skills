@@ -10,6 +10,16 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+### Added
+- Package 0.23.0 notes: the core script `tooltip.js` (sixth `{% cv_js %}` asset) initialises the
+  `card-rows` detail tooltip (`[data-cv-tooltip]`, `cv.initTooltips(root)`); where `detail` shows
+  per layout pack; guardian `cv_guardian_accept_global_perms` now also covers the parent check;
+  `Table.ca` presets combine safely with `|` (full preset list incl. `w5`…`w100`, `action`).
+- Common Mistakes rows for 0.23.0: POST list actions and the filter toggle are `<button>`s
+  (tag selectors break), overridden action templates must keep the visually hidden label, the
+  never-initialised tooltip, the guardian parent 403 and the `Table.ca` preset bleed (both
+  fixed in 0.23.0).
+
 ## [0.5.0] — 2026-09-14
 
 ### Added

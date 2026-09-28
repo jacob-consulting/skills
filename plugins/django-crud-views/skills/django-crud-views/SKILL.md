@@ -121,6 +121,8 @@ class BookDetailView(ObjectDetailViewPermissionRequired):
 
 Each `properties` entry is a plain string, a dict, or `x()` / `PropertyConfig`. Dict keys:
 `path` (required), `title`, `detail` (tooltip), `type`, `template`, `link`, `badge`.
+`detail` renders inline in most layout packs; `card-rows` shows it as a tooltip, initialised by the
+bundled `tooltip.js` (via `{% cv_js %}`, needs Bootstrap's JS; since 0.23.0).
 Use `__` for FK/M2M traversal (`"author__country__name"`, `"tags"`).
 
 `link` and `badge` each accept **either** a string shorthand or the full object:
@@ -860,6 +862,10 @@ bundle render:
 {% cv_js %}
 ```
 
+Core scripts: `viewset.js`, `formset.js`, `list.filter.js`, `modal.js`, `toggle.js` and — since
+0.23.0 — `tooltip.js` (initialises the package's own `[data-cv-tooltip]` triggers; call
+`cv.initTooltips(root)` after injecting such markup yourself).
+
 The package emits **no inline `<script>` or `<style>` anywhere**, so it needs no
 `'unsafe-inline'`. `{% cv_config %}` (the modal shell) is markup only — a hidden `<div>`
 carrying `data-` attributes plus an empty modal container — so it needs no nonce. Modal
@@ -1203,6 +1209,10 @@ class AuthorDetailView(GuardianDetailViewPermissionRequired):
     cv_guardian_accept_global_perms = True  # allow model-level perms as fallback
 ```
 
+On a child view the flag also covers the **parent** check: a model-level permission on the parent
+model (e.g. `app.view_author`) is accepted as a fallback for the per-object grant — *since 0.23.0*;
+before, the parent check ignored the flag and returned 403.
+
 ### Create views
 
 - **Top-level creates** (no parent): standard model-level `add_<model>` permission is checked.
@@ -1266,6 +1276,11 @@ To customise the manage view class for a specific viewset, pass `manage_view_cla
 
 | Mistake | Fix |
 |---|---|
+| CSS/test selectors for list or filter actions broke in 0.23.0 | List actions that POST (`ActionView`s such as `up`/`down`) and the filter toggle `#cv-filter-toggle` are `<button type="button">` now, not `<a href="#">`; navigating actions are plain `<a>` without `role="button"`. Select by class/id/`cv-key`, not by tag |
+| Overriding `tags/list_action.html` / `tags/context_action.html` loses the accessible name | Icon-only controls carry their name as `<span class="visually-hidden">{{ cv_action_label }}</span>` with the icon `aria-hidden="true"` (0.23.0) — keep both. Prefer that over `aria-label`: same name, and Sonar's `Web:S7927` misreads `aria-label` next to template tags |
+| `card-rows` detail tooltip never appears | Before 0.23.0 nothing initialised it — upgrade. Needs `{% cv_js %}` and Bootstrap's JS; for markup you inject yourself call `cv.initTooltips(root)` |
+| Guardian child routes 403 although the user has the model-level parent perm and `cv_guardian_accept_global_perms = True` | Before 0.23.0 the parent check ignored the flag — upgrade |
+| `Table.ca.w10 \| …` adds classes to other columns too (before 0.23.0) | `ColumnAttrs.__or__` modified the shared preset; fixed in 0.23.0 — upgrade, no code change |
 | Signed card ordering with `?order=+name` in a link | `+` decodes to a space in a query string; ascending is the bare name: `?order=name` (0.22.0) |
 | Expecting `dir=desc` to flip a signed card order | In signed mode the direction lives in the value (`?order=-name`); `dir` is ignored |
 | Mixin after base view class | Mixins must come **before**: `CrispyViewMixin, MessageMixin, CreateViewPermissionRequired` |
