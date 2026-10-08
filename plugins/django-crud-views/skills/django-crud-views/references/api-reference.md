@@ -183,6 +183,7 @@ class MyUpdateView(CrispyViewMixin, MessageMixin, UpdateViewPermissionRequired):
     cv_success_key = "list"
     cv_cancel_key = "list"               # cancel button target (default: "list")
     cv_cancel_keys = ["list", "detail"]  # optional: return to the origin view instead (since 0.21.0)
+    cv_success_keys = ["list", "detail"] # optional: same for the success redirect (since 0.26.0)
 ```
 
 ### DeleteView / DeleteViewPermissionRequired
@@ -769,8 +770,8 @@ CRUD_VIEWS_MANAGE_VIEWS_ENABLED = "debug_only"         # "yes" | "no" | "debug_o
 # Session
 CRUD_VIEWS_SESSION_DATA_KEY = "viewset"
 
-# Cancel button (since 0.21.0)
-CRUD_VIEWS_CANCEL_ORIGIN_PARAM = "cv_from"             # query param carrying the origin view key; must match ^[a-z][a-z0-9_]*$ (crud_views.E103)
+# Origin parameter for cv_cancel_keys / cv_success_keys (since 0.26.0; was CRUD_VIEWS_CANCEL_ORIGIN_PARAM)
+CRUD_VIEWS_ORIGIN_PARAM = "cv_from"                    # query param carrying the origin view key; must match ^[a-z][a-z0-9_]*$ (crud_views.E103)
 
 # Filter
 CRUD_VIEWS_FILTER_PERSISTENCE = True
@@ -966,16 +967,22 @@ properties, and other descriptors are never flagged.
 Exempt intentional custom attributes with `cv_check_ignore_attributes` (a `frozenset[str]`);
 the allowlist is unioned across the MRO.
 
-## Dynamic cancel target (`cv_cancel_keys`)
+## Dynamic cancel and success target (`cv_cancel_keys`, `cv_success_keys`)
 
-*Available since 0.21.0.*
+*Cancel available since 0.21.0, success since 0.26.0.*
 
 | Name | Where | Meaning |
 |---|---|---|
 | `cv_cancel_key` | view attribute, `str \| None`, default `"list"` | static cancel target |
 | `cv_cancel_keys` | view attribute, `list[str] \| None`, default `None` | origin keys the cancel button may return to; enables the feature |
 | `cv_get_cancel_key(obj=None)` | view method | resolved key: validated origin or `cv_cancel_key`; `obj` defaults to the view's object |
+| `cv_success_key` | view attribute, `str \| None`, default `"list"` | static success redirect target |
+| `cv_success_keys` | view attribute, `list[str] \| None`, default `None` | origin keys the success redirect may return to (0.26.0) |
+| `cv_get_success_key(obj=None)` | view method | resolved key: validated origin or `cv_success_key`; object origins fall back when `obj.pk` is `None` (after delete); used by `get_success_url()` |
+| `cv_origin_keys_registered(keys)` | view classmethod | `True` when every key is registered (`list` may fall back to `card`); replaced `cv_cancel_keys_registered()` in 0.26.0 |
 | `cv_get_origin_key()` | view method | raw origin from the request, `None` if absent or not matching `^[a-z][a-z0-9_]*$` |
-| `cv_get_link_url(cls, key, obj=None)` | view method | sibling URL, with `?<param>=<origin key>` when this view satisfies an entry of `cls.cv_cancel_keys` (a card page counts as `list` on a ViewSet without a list view); use it instead of `cv_get_url` in custom link builders |
-| `CRUD_VIEWS_CANCEL_ORIGIN_PARAM` | setting, default `"cv_from"` | parameter name; `crud_views.E103` when invalid |
+| `cv_get_link_url(cls, key, obj=None)` | view method | sibling URL, with `?<param>=<origin key>` when this view satisfies an entry of `cls.cv_cancel_keys` or `cls.cv_success_keys` (a card page counts as `list` on a ViewSet without a list view); use it instead of `cv_get_url` in custom link builders |
+| `CRUD_VIEWS_ORIGIN_PARAM` | setting, default `"cv_from"` | parameter name (was `CRUD_VIEWS_CANCEL_ORIGIN_PARAM` before 0.26.0); `crud_views.E103` when invalid |
 | `viewset.E252` | system check | an entry of `cv_cancel_keys` is not a registered view key |
+| `viewset.E253` | system check | an entry of `cv_success_keys` is not a registered view key |
+| `viewset.E254` | system check | a delete view's `cv_success_key` / `cv_success_keys` names an object view (the object is gone after success) |

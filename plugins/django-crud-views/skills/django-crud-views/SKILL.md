@@ -251,28 +251,36 @@ Override `cv_card_container_class` to control the Bootstrap grid width of each c
 ViewSets with only a `CardListView` (no `ListView`) automatically resolve `"list"` keys to `"card"`. No need to
 override `cv_success_key` or `cv_cancel_key` on sibling views.
 
-### Cancel button target
+### Cancel button and success target
 
-*Available since 0.21.0.*
+*Cancel since 0.21.0, success since 0.26.0.*
 
-The cancel button returns to `cv_cancel_key` (`"list"`). Set `cv_cancel_keys` to let it return
-to the sibling view the user came from instead:
+The cancel button returns to `cv_cancel_key` (`"list"`), a successful submit to `cv_success_key`
+(`"list"`). Set `cv_cancel_keys` / `cv_success_keys` to return to the sibling view the user came
+from instead:
 
 ```python
 class AuthorUpdateView(CrispyViewMixin, MessageMixin, UpdateViewPermissionRequired):
     cv_viewset = cv_author
     form_class = AuthorForm
     cv_cancel_keys = ["list", "detail"]   # dynamic; cv_cancel_key stays the fallback
+    cv_success_keys = ["list", "detail"]  # dynamic; cv_success_key stays the fallback
 ```
 
 Links into such a view carry the origin as a view key in the query string
-(`/author/<pk>/update/?cv_from=detail`); the parameter name is `CRUD_VIEWS_CANCEL_ORIGIN_PARAM`
-(default `cv_from`). Values that are malformed, not in `cv_cancel_keys`, unregistered, or that
-need an object the view lacks (e.g. `detail` on a create view) fall back to `cv_cancel_key`.
+(`/author/<pk>/update/?cv_from=detail`) when the target lists it in either list; the parameter
+name is `CRUD_VIEWS_ORIGIN_PARAM` (default `cv_from`; was `CRUD_VIEWS_CANCEL_ORIGIN_PARAM` before
+0.26.0). The two lists resolve independently. Values that are malformed, not listed, unregistered,
+or that need an object the view lacks (e.g. cancel to `detail` on a create view, success to
+`detail` after a delete) fall back to `cv_cancel_key` / `cv_success_key`.
 The origin survives validation errors (forms post to `request.get_full_path`) and modal
-re-renders. Works on Create/Update/Delete/CustomForm views. In custom templates resolve the
-target with `{% cv_context_url view.cv_get_cancel_key as url %}`, not `view.cv_cancel_key`.
-Checks: `crud_views.E103` (bad parameter name), `viewset.E252` (unregistered key).
+re-renders; modal success uses it for `X-CV-Redirect`. Works on Create/Update/Delete/CustomForm
+views; `cv_success_keys` also on Workflow, Action and ordered up/down views. In custom templates
+resolve the cancel target with `{% cv_context_url view.cv_get_cancel_key as url %}`, not
+`view.cv_cancel_key`; the success key resolves via `cv_get_success_key()`.
+Checks: `crud_views.E103` (bad parameter name), `viewset.E252` / `viewset.E253` (unregistered
+key in `cv_cancel_keys` / `cv_success_keys`), `viewset.E254` (object view such as `detail` in a
+delete view's `cv_success_key` or `cv_success_keys` — the object is gone after success).
 
 Theme overrides of `view_{create,update,delete,custom_form}.content.html` must use
 `action="{{ request.get_full_path }}"` — a form posting to `request.path` drops the origin, so
@@ -1333,6 +1341,8 @@ To customise the manage view class for a specific viewset, pass `manage_view_cla
 | Startup warns `viewset.W280` | A `cv_*` attribute no class recognizes — fix the typo, or allow it via `cv_check_ignore_attributes` |
 | Action-column CSS/test selectors broke in 0.20.0 | The `th`/`td` class changed from `d-flex justify-content-end` to `cv-col-action` (flex broke the row separator); the shipped `table.css` right-aligns with `text-align` |
 | `ImportError` on `import crud_views` | Since 0.20.0 a missing `django-filter` or `django-crispy-forms` fails immediately instead of later — both are required; fix the install |
+| `CRUD_VIEWS_CANCEL_ORIGIN_PARAM` silently ignored | Renamed in 0.26.0 to `CRUD_VIEWS_ORIGIN_PARAM` (shared by `cv_cancel_keys` and `cv_success_keys`) |
+| `DeleteView` with `cv_success_key = "detail"` → `NoReverseMatch` (before 0.26.0) / `viewset.E254` | The object is deleted before the redirect; send success to a list-type view |
 | `cv_cancel_keys` origin lost after a validation error | An overridden `*.content.html` posts to `request.path`; use `request.get_full_path` (package templates switched in 0.21.0) |
 | `CustomFormNoObjectView` crashes on GET (before 0.21.0) | It inherited the detail actions, which need an object; 0.21.0 defaults to `CRUD_VIEWS_CREATE_CONTEXT_ACTIONS`. Upgrade — a `cv_context_actions` set only to dodge the crash can go |
 | Crispy cancel on a `CustomFormView` with `CrispyModelForm` links to a non-existent object (before 0.21.0) | It used the form's unsaved `instance`; fixed in 0.21.0 to use the view's object — upgrade, no code change |

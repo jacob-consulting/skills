@@ -10,6 +10,15 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+### Added
+- Package 0.26.0 notes: `cv_success_keys` / `cv_get_success_key()` (dynamic success target sharing
+  the origin parameter with `cv_cancel_keys`), checks `viewset.E253` / `viewset.E254`,
+  `cv_origin_keys_registered(keys)`.
+
+### Changed
+- `CRUD_VIEWS_CANCEL_ORIGIN_PARAM` → `CRUD_VIEWS_ORIGIN_PARAM` (package 0.26.0); Common Mistakes rows
+  for the rename and for an object-view `cv_success_key` on a `DeleteView`.
+
 ## [0.7.0] — 2026-10-08
 
 ### Added
