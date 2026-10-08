@@ -1322,7 +1322,8 @@ put the transition record in `context["workflow_info"]`.
 
 - `cv_atomic = False`: no transaction (default on `ResourceViewMixin`; needed for
   `atomic(durable=True)` services).
-- `cv_get_atomic()` / `cv_get_db_alias()`: override for a custom boundary or another database.
+- Another database: override `cv_get_db_alias()` (the transaction and `cv_on_commit` both use it).
+  Override `cv_get_atomic()` only for a custom boundary on that same alias.
 - `action()` returning `False` does not roll back; call `transaction.set_rollback(True)`.
 - Overriding `post()`? Call `cv_form_valid_process(context)` / `cv_action_process(context)` to
   keep the transaction.
