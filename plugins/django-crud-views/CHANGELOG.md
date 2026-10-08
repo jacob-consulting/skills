@@ -10,6 +10,8 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+- Document transactions around writes and the cv_on_commit hook (package 0.27.0, unreleased).
+
 ## [0.8.0] — 2026-10-08
 
 ### Added

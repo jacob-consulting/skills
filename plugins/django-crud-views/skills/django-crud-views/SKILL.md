@@ -1312,10 +1312,31 @@ To customise the manage view class for a specific viewset, pass `manage_view_cla
 
 ---
 
+## Transactions & hooks (since 0.27.0)
+
+Form, delete and action views run their write phase in one transaction:
+`cv_form_valid` + `cv_form_valid_hook` (resp. `action()` + `cv_action_success_hook` /
+`cv_action_error_hook`) are inside `transaction.atomic(using=cv_get_db_alias())`. Side effects go
+in `cv_on_commit(context)`, which runs after the commit and never after a rollback. Workflow views
+put the transition record in `context["workflow_info"]`.
+
+- `cv_atomic = False`: no transaction (default on `ResourceViewMixin`; needed for
+  `atomic(durable=True)` services).
+- `cv_get_atomic()` / `cv_get_db_alias()`: override for a custom boundary or another database.
+- `action()` returning `False` does not roll back; call `transaction.set_rollback(True)`.
+- Overriding `post()`? Call `cv_form_valid_process(context)` / `cv_action_process(context)` to
+  keep the transaction.
+- Migrating from 0.26: an exception in those hooks now rolls back the write; a caught
+  `IntegrityError` inside `cv_form_valid` needs a nested `atomic()` on PostgreSQL;
+  `atomic(durable=True)` in the write phase raises `RuntimeError` (set `cv_atomic = False`).
+
+---
+
 ## Common Mistakes
 
 | Mistake | Fix |
 |---|---|
+| Sending mail / starting Celery tasks in `cv_form_valid_hook`, `action()` or `on_transition` | They run before the commit (since 0.27.0); use `cv_on_commit(context)` |
 | CSS/test selectors for list or filter actions broke in 0.23.0 | List actions that POST (`ActionView`s such as `up`/`down`) and the filter toggle `#cv-filter-toggle` are `<button type="button">` now, not `<a href="#">`; navigating actions are plain `<a>` without `role="button"`. Select by class/id/`cv-key`, not by tag |
 | Overriding `tags/list_action.html` / `tags/context_action.html` loses the accessible name | Icon-only controls carry their name as `<span class="visually-hidden">{{ cv_action_label }}</span>` with the icon `aria-hidden="true"` (0.23.0) — keep both. Prefer that over `aria-label`: same name, and Sonar's `Web:S7927` misreads `aria-label` next to template tags |
 | `card-rows` detail tooltip never appears | Before 0.23.0 nothing initialised it — upgrade. Needs `{% cv_js %}` and Bootstrap's JS; for markup you inject yourself call `cv.initTooltips(root)` |
