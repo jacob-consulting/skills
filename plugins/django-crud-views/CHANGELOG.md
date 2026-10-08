@@ -10,6 +10,8 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-10-08
+
 ### Added
 - Package 0.26.0 notes: `cv_success_keys` / `cv_get_success_key()` (dynamic success target sharing
   the origin parameter with `cv_cancel_keys`), checks `viewset.E253` / `viewset.E254`,
@@ -134,3 +136,4 @@ Initial published release — the `django-crud-views` skill packaged as a Claude
 [0.5.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.5.0
 [0.6.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.6.0
 [0.7.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.7.0
+[0.8.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.8.0
