@@ -818,6 +818,7 @@ The icon class is built as `{class}-{type} {prefix}-{name}` (type omitted when N
 
 ```python
 CRUD_VIEWS_CSP_NONCE_ATTR = "csp_nonce"   # request attribute holding the per-request CSP nonce
+CRUD_VIEWS_ASSETS_BUNDLED = False        # True: cv_js/cv_css emit only CDN entries; pipeline bundles the rest (0.25.0)
 ```
 
 ---
@@ -913,6 +914,7 @@ from crud_views.lib.breadcrumb import BreadcrumbItem, CrudViewBreadcrumbMixin
 
 # Static asset registry / SRI
 from crud_views.lib.assets import Asset, AssetBundle, register_assets, get_registered
+from crud_views.lib.pipeline import cv_sources   # django-pipeline source_filenames (settings-time safe)
 
 # Settings object (use .as_dict — renamed from .dict in 0.20.0)
 from crud_views.lib.settings import crud_views_settings
@@ -930,6 +932,10 @@ from crud_views.lib.settings import crud_views_settings
 | `Asset` | `path`, `integrity=None`, `crossorigin=None` | Frozen dataclass. `integrity` set + `crossorigin` unset → renders `crossorigin="anonymous"`. |
 | `AssetBundle` | `key`, `js`, `css`, `emit` | `js`/`css` are tuples of `Asset` — **not strings** (changed in 0.18.0; use `.path`). |
 | `get_registered` | `(only_emitting=False)` | Bundles in registration order (= `INSTALLED_APPS` order). |
+| `CORE_KEY` | `"crud_views"` | Reserved key of the core bundle (0.25.0). |
+| `iter_bundles` | `(only_emitting=False)` | Core bundle first, then registered bundles (0.25.0). |
+| `collect` | `(kind, *, only_emitting=False)` | `list[BundleEntry(key, emit, asset)]` in render order (0.25.0). |
+| `cv_sources` (`crud_views.lib.pipeline`) | `(kind, *, before=(), after=(), keys=None, exclude=())` | Returns `LazySources`; resolves on access; drops CDN entries; includes `emit=False` bundles (0.25.0). |
 
 `{% cv_js %}` / `{% cv_css %}` render core assets, then each emitting bundle. Core JS
 (`crud_views_settings.javascript()`): `viewset.js`, `formset.js`, `list.filter.js`, `modal.js`,
@@ -941,7 +947,11 @@ from crud_views.lib.settings import crud_views_settings
 when none is present.
 
 **Checks:** `crud_views.E330` (integrity not `sha256-`/`sha384-`/`sha512-` prefixed),
-`crud_views.W332` (integrity on a same-origin static path).
+`crud_views.W332` (integrity on a same-origin static path), and for the pipeline integration (0.25.0)
+`W340`–`W345` (see SKILL.md "Bundling with django-pipeline").
+
+**Command:** `manage.py cv_assets [--external] [--kind js|css] [--format table|json]` lists every
+asset with its delivery (`tag`, `tag (CDN)`, `pipeline:<package>`, `none`, `none (emit=False)`) (0.25.0).
 
 ---
 

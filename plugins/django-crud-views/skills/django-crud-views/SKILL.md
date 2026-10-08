@@ -1,6 +1,6 @@
 ---
 name: django-crud-views
-description: "Build Django CRUD interfaces using the django-crud-views package. Use when wiring up ViewSets or List/Detail/Create/Update/Delete class-based views; configuring tables with django-tables2, filters with django-filter, or forms with django-crispy-forms; building nested/child resources with ParentViewSet; adding permission-required views or per-object permissions with Guardian; integrating django-fsm transitions with WorkflowView or WorkflowModelMixin; using formsets with FormSetMixin or conditional field-groups; rendering property grids with ObjectDetailView and cv_property_display; registering static assets, CSP nonces, or SRI hashes via register_assets; working with polymorphic models; showing non-ORM data (S3, external APIs) with Resource and ResourceViewMixin; diagnosing crud_views system checks such as viewset.W280; or when code imports crud_views, crud_views_object_detail, crud_views_workflow, crud_views_polymorphic, or crud_views_guardian."
+description: "Build Django CRUD interfaces using the django-crud-views package. Use when wiring up ViewSets or List/Detail/Create/Update/Delete class-based views; configuring tables with django-tables2, filters with django-filter, or forms with django-crispy-forms; building nested/child resources with ParentViewSet; adding permission-required views or per-object permissions with Guardian; integrating django-fsm transitions with WorkflowView or WorkflowModelMixin; using formsets with FormSetMixin or conditional field-groups; rendering property grids with ObjectDetailView and cv_property_display; registering static assets, CSP nonces, or SRI hashes via register_assets, or bundling them into django-pipeline with cv_sources; working with polymorphic models; showing non-ORM data (S3, external APIs) with Resource and ResourceViewMixin; diagnosing crud_views system checks such as viewset.W280; or when code imports crud_views, crud_views_object_detail, crud_views_workflow, crud_views_polymorphic, or crud_views_guardian."
 ---
 
 # django-crud-views
@@ -925,6 +925,38 @@ Output is byte-identical to before when no CSP middleware is present. Only chang
 `CRUD_VIEWS_CSP_NONCE_ATTR` (default `"csp_nonce"`) if your middleware stores the nonce
 under a different request attribute.
 
+### Bundling with django-pipeline
+
+*Available since 0.25.0.*
+
+```python
+# settings.py
+from crud_views.lib.pipeline import cv_sources
+
+CRUD_VIEWS_ASSETS_BUNDLED = True   # cv_js/cv_css then emit only CDN entries
+
+PIPELINE = {
+    "JAVASCRIPT": {"main": {
+        "source_filenames": cv_sources("js", before=["js/jquery.js"], after=["js/app.js"]),
+        "output_filename": "js/main.js",
+    }},
+    "STYLESHEETS": {"main": {"source_filenames": cv_sources("css"), "output_filename": "css/main.css"}},
+}
+```
+
+- `cv_sources()` is **lazy** — pipeline reads it after `AppConfig.ready()`, so core plus every
+  registered bundle lands in the package with no hand-maintained list. Never expand it in settings
+  (`[*cv_sources(...)]` raises `AppRegistryNotReady`); use `before=`/`after=` or `list + cv_sources(...)`.
+- `keys=[...]` / `exclude=[...]` select bundles (`"crud_views"` = core, a reserved key) to split across
+  packages; `keys=None` = all, `keys=[]` = none.
+- CDN entries cannot be bundled: they stay `{% cv_js %}`/`{% cv_css %}` tags, so keep the tags in
+  the base template. Core has none; an extension must be in its vendored mode to be fully bundled
+  (W345 warns otherwise). `python manage.py cv_assets --external` lists the CDN entries.
+- Checks: W340 (bundled, no `cv_sources()` in `PIPELINE`), W341 (asset in no package), W342 (not
+  bundled → double load), W343 (unknown key), W344 (js/css mismatch), W345 (bundle mixes CDN and local).
+  Hand-written `source_filenames` strings count as coverage too; globs match per path segment like
+  pipeline's own (`*` does not cross `/`).
+
 > `AssetBundle.js` / `.css` hold `Asset` instances, not strings (changed in 0.18.0).
 > Code doing `bundle.js[0].startswith(...)` must use `bundle.js[0].path`.
 
@@ -1304,3 +1336,5 @@ To customise the manage view class for a specific viewset, pass `manage_view_cla
 | `cv_cancel_keys` origin lost after a validation error | An overridden `*.content.html` posts to `request.path`; use `request.get_full_path` (package templates switched in 0.21.0) |
 | `CustomFormNoObjectView` crashes on GET (before 0.21.0) | It inherited the detail actions, which need an object; 0.21.0 defaults to `CRUD_VIEWS_CREATE_CONTEXT_ACTIONS`. Upgrade — a `cv_context_actions` set only to dodge the crash can go |
 | Crispy cancel on a `CustomFormView` with `CrispyModelForm` links to a non-existent object (before 0.21.0) | It used the form's unsaved `instance`; fixed in 0.21.0 to use the view's object — upgrade, no code change |
+| `PIPELINE` built with `[*cv_sources("js"), ...]` → `AppRegistryNotReady` at startup | Keep it lazy: `cv_sources("js", before=[...], after=[...])` or `[...] + cv_sources("js")` (0.25.0) |
+| Extension bundled by pipeline in CDN mode — its init script runs before the CDN plugin (W345) | Switch the extension to vendored mode (e.g. datetimepicker `SOURCE="vendored"` + `cv_vendor_datetimepicker`); find CDN entries with `manage.py cv_assets --external` |
