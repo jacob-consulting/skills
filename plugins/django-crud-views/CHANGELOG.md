@@ -10,6 +10,8 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-10-08
+
 ### Added
 - Package 0.25.0 notes: bundling registry assets into django-pipeline with the lazy `cv_sources()`,
   `CRUD_VIEWS_ASSETS_BUNDLED`, checks W340–W345, the `cv_assets` listing command; Common Mistakes
@@ -122,3 +124,4 @@ Initial published release — the `django-crud-views` skill packaged as a Claude
 [0.4.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.4.0
 [0.5.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.5.0
 [0.6.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.6.0
+[0.7.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.7.0
