@@ -10,6 +10,11 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+### Added
+- Package 0.27.1 notes: system check `viewset.E255` for context buttons whose target view or
+  ViewSet does not resolve, `ContextButton.cv_check_target(viewset)`; Common Mistakes row for
+  silently missing context buttons.
+
 ## [0.9.0] — 2026-10-09
 
 ### Added

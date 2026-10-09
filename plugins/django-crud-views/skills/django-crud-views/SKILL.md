@@ -526,6 +526,13 @@ class BookDetailView(DetailViewPermissionRequired):
   stay separate).
 - A view-level button overrides a ViewSet-level button with the same `key`, for that view only.
 
+**Target check `viewset.E255` (since 0.27.1):** every configured button (ViewSet `context_buttons`
+and `cv_context_buttons`) must resolve at startup — `key_target` on the own ViewSet
+(`ContextButton`) or the parent (`ParentContextButton`, which also needs a parent), `child_name`
+being a child plus `child_key`, `sibling_name` plus `sibling_key`; `list` may fall back to `card`.
+Buttons equal to a `context_buttons_default()` entry and subclasses overriding `get_context()` are
+skipped; a custom button type can override `cv_check_target(viewset)` (returns a message or `None`).
+
 ---
 
 ## Filtering
@@ -1338,6 +1345,7 @@ put the transition record in `context["workflow_info"]`.
 | Mistake | Fix |
 |---|---|
 | Sending mail / starting Celery tasks in `cv_form_valid_hook`, `action()` or `on_transition` | They run before the commit (since 0.27.0); use `cv_on_commit(context)` |
+| Context button silently missing (0.24.2–0.27.0) | An unresolvable target (`child_key="lsit"`) is skipped at render time; since 0.27.1 `viewset.E255` reports it at startup — fix the name or register the view. Customizing a default (`home` with its own label) on a ViewSet without `list` now fails E255: drop it there |
 | `viewset.W280` flags `cv_parent_key` (0.27.0) | It was never read and is removed; the parent link's target is `ParentContextButton(key="parent", key_target=...)` |
 | CSS/test selectors for list or filter actions broke in 0.23.0 | List actions that POST (`ActionView`s such as `up`/`down`) and the filter toggle `#cv-filter-toggle` are `<button type="button">` now, not `<a href="#">`; navigating actions are plain `<a>` without `role="button"`. Select by class/id/`cv-key`, not by tag |
 | Overriding `tags/list_action.html` / `tags/context_action.html` loses the accessible name | Icon-only controls carry their name as `<span class="visually-hidden">{{ cv_action_label }}</span>` with the icon `aria-hidden="true"` (0.23.0) — keep both. Prefer that over `aria-label`: same name, and Sonar's `Web:S7927` misreads `aria-label` next to template tags |
