@@ -10,6 +10,8 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-10-09
+
 ### Added
 - Package 0.27.0 notes: transactions around every write (`cv_atomic`, `cv_get_atomic()`,
   `cv_get_db_alias()`, `cv_form_valid_process()` / `cv_action_process()`), the `cv_on_commit(context)`
@@ -146,3 +148,4 @@ Initial published release — the `django-crud-views` skill packaged as a Claude
 [0.6.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.6.0
 [0.7.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.7.0
 [0.8.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.8.0
+[0.9.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.9.0
