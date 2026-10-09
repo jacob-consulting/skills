@@ -10,7 +10,14 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
-- Document transactions around writes and the cv_on_commit hook (package 0.27.0, unreleased).
+### Added
+- Package 0.27.0 notes: transactions around every write (`cv_atomic`, `cv_get_atomic()`,
+  `cv_get_db_alias()`, `cv_form_valid_process()` / `cv_action_process()`), the `cv_on_commit(context)`
+  hook with `context["workflow_info"]` on workflow views, and the 0.26 migration notes; Common Mistakes
+  row for side effects in hooks that now run before the commit.
+
+### Changed
+- `CrudView.cv_parent_key` removed (package 0.27.0); Common Mistakes row for `viewset.W280` flagging it.
 
 ## [0.8.0] — 2026-10-08
 

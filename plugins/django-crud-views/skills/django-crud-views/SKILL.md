@@ -1338,6 +1338,7 @@ put the transition record in `context["workflow_info"]`.
 | Mistake | Fix |
 |---|---|
 | Sending mail / starting Celery tasks in `cv_form_valid_hook`, `action()` or `on_transition` | They run before the commit (since 0.27.0); use `cv_on_commit(context)` |
+| `viewset.W280` flags `cv_parent_key` (0.27.0) | It was never read and is removed; the parent link's target is `ParentContextButton(key="parent", key_target=...)` |
 | CSS/test selectors for list or filter actions broke in 0.23.0 | List actions that POST (`ActionView`s such as `up`/`down`) and the filter toggle `#cv-filter-toggle` are `<button type="button">` now, not `<a href="#">`; navigating actions are plain `<a>` without `role="button"`. Select by class/id/`cv-key`, not by tag |
 | Overriding `tags/list_action.html` / `tags/context_action.html` loses the accessible name | Icon-only controls carry their name as `<span class="visually-hidden">{{ cv_action_label }}</span>` with the icon `aria-hidden="true"` (0.23.0) — keep both. Prefer that over `aria-label`: same name, and Sonar's `Web:S7927` misreads `aria-label` next to template tags |
 | `card-rows` detail tooltip never appears | Before 0.23.0 nothing initialised it — upgrade. Needs `{% cv_js %}` and Bootstrap's JS; for markup you inject yourself call `cv.initTooltips(root)` |
