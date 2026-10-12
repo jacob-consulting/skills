@@ -10,6 +10,8 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-10-12
+
 ### Changed
 - Package 0.29.0 notes: `viewset.E110` requires action label templates on backend-only views (#179); POST
   actions work in the context toolbar, inline and in its menu, and the new tag `{% cv_context_action_form %}` pairs
@@ -173,3 +175,4 @@ Initial published release — the `django-crud-views` skill packaged as a Claude
 [0.9.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.9.0
 [0.10.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.10.0
 [0.11.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.11.0
+[0.12.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.12.0
