@@ -88,7 +88,7 @@ to get a permission-gated target URL (`None` when the user has no access or the 
 disabled), then gate your markup with `{% if url %}`. Use `{% cv_context_button "key" %}`
 instead when you want the library to render the full button markup. For a POST-only target
 (`ActionView`, `up` / `down`) that button submits a hidden form: also render
-`{% cv_context_action_form "key" %}` outside any `.btn-group` (after 0.28.0; it renders nothing for GET,
+`{% cv_context_action_form "key" %}` outside any `.btn-group` (since 0.29.0; it renders nothing for GET,
 hidden or disabled actions, and the object defaults to the view's object).
 
 Guardian variant: `GuardianDetailViewPermissionRequired`.
@@ -761,8 +761,8 @@ class AuthorCardListView(CardListViewPermissionRequired):
   `up` / `down` can be folded but belong inline.
 - **Hide/disable:** hidden actions appear nowhere; a menu with only hidden actions renders no toggle. Disabled items
   are `<button class="dropdown-item" disabled data-cv-disabled="…">`; a menu with only disabled items still renders.
-- **POST and modal** items work from the menu (hidden forms stay outside it), in list rows, cards and — after
-  0.28.0 — the context toolbar too, inline and in its menu (also for a `ContextButton` whose `key_target` is POST).
+- **POST and modal** items work from the menu (hidden forms stay outside it), in list rows, cards and — since
+  0.29.0 — the context toolbar too, inline and in its menu (also for a `ContextButton` whose `key_target` is POST).
   Up to 0.28.0 the toolbar rendered POST actions as GET links (405).
 - **Labels:** menu items show the target's icon (`fa-fw`) and short label (`cv_action_short_label`;
   `CardAction.label` on cards). A context button's own `label_template[_code]` also sets its short label, so it
@@ -1455,10 +1455,10 @@ put the transition record in `context["workflow_info"]`.
 | Mistake | Fix |
 |---|---|
 | `cv_list_actions_inline` set but no `⋯` menu appears | The project overrides `columns/actions.html` / `tags/context_actions.html` / `tags/card.html`; adopt the package's `{% if group is None %}` branch (0.28.0) |
-| POST `ActionView` in `cv_context_actions` answers 405 when clicked (up to 0.28.0) | The toolbar rendered POST actions as GET links; fixed after 0.28.0 (#178) — upgrade. A hand-placed `{% cv_context_button %}` for a POST key also needs `{% cv_context_action_form "key" %}` |
+| POST `ActionView` in `cv_context_actions` answers 405 when clicked (up to 0.28.0) | The toolbar rendered POST actions as GET links; fixed in 0.29.0 (#178) — upgrade. A hand-placed `{% cv_context_button %}` for a POST key also needs `{% cv_context_action_form "key" %}` |
 | Startup warns `viewset.W290` | A key in the view's own `cv_*_actions_inline` is not among that location's actions — fix the typo (ViewSet/setting values are never checked) |
 | Custom `list_action.html` / `card_action.html` placeholder for `not cv_access` vanished (0.28.0) | In the default hide mode the tags pass an empty context; set the target view's `cv_inaccessible_actions = "disable"` and use the `cv_disabled` branch |
-| Startup fails `viewset.E110` on a backend-only view (after 0.28.0); up to 0.28.0 the button raised `CrudViewError: no template or template_code provided` at request time | Give it `cv_action_label_template_code` and `cv_action_short_label_template_code` — `cv_backend_only = True` exempts only header/paragraph, not the labels its buttons render (#179) |
+| Startup fails `viewset.E110` on a backend-only view (since 0.29.0); up to 0.28.0 the button raised `CrudViewError: no template or template_code provided` at request time | Give it `cv_action_label_template_code` and `cv_action_short_label_template_code` — `cv_backend_only = True` exempts only header/paragraph, not the labels its buttons render (#179) |
 | Sending mail / starting Celery tasks in `cv_form_valid_hook`, `action()` or `on_transition` | They run before the commit (since 0.27.0); use `cv_on_commit(context)` |
 | Context button silently missing (0.24.2–0.27.0) | An unresolvable target (`child_key="lsit"`) is skipped at render time; since 0.27.1 `viewset.E255` reports it at startup — fix the name or register the view. Customizing a default (`home` with its own label) on a ViewSet without `list` now fails E255: drop it there |
 | `viewset.W280` flags `cv_parent_key` (0.27.0) | It was never read and is removed; the parent link's target is `ParentContextButton(key="parent", key_target=...)` |
