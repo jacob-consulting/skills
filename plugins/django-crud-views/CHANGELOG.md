@@ -10,6 +10,8 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-10-12
+
 ### Added
 - Package 0.28.0 notes: hide or disable inaccessible actions (`CRUD_VIEWS_INACCESSIBLE_ACTIONS`,
   `inaccessible_actions`, `cv_inaccessible_actions`, checks `crud_views.E104` / `viewset.E207`) and action menus
@@ -165,3 +167,4 @@ Initial published release — the `django-crud-views` skill packaged as a Claude
 [0.8.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.8.0
 [0.9.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.9.0
 [0.10.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.10.0
+[0.11.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.11.0
