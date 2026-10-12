@@ -1,6 +1,6 @@
 ---
 name: django-crud-views
-description: "Build Django CRUD interfaces using the django-crud-views package. Use when wiring up ViewSets or List/Detail/Create/Update/Delete class-based views; configuring tables with django-tables2, filters with django-filter, or forms with django-crispy-forms; building nested/child resources with ParentViewSet; adding permission-required views or per-object permissions with Guardian; integrating django-fsm transitions with WorkflowView or WorkflowModelMixin; using formsets with FormSetMixin or conditional field-groups; rendering property grids with ObjectDetailView and cv_property_display; registering static assets, CSP nonces, or SRI hashes via register_assets, or bundling them into django-pipeline with cv_sources; working with polymorphic models; showing non-ORM data (S3, external APIs) with Resource and ResourceViewMixin; diagnosing crud_views system checks such as viewset.W280; or when code imports crud_views, crud_views_object_detail, crud_views_workflow, crud_views_polymorphic, or crud_views_guardian."
+description: "Build Django CRUD interfaces using the django-crud-views package. Use when wiring up ViewSets or List/Detail/Create/Update/Delete class-based views; configuring tables with django-tables2, filters with django-filter, or forms with django-crispy-forms; building nested/child resources with ParentViewSet; adding permission-required views or per-object permissions with Guardian; integrating django-fsm transitions with WorkflowView or WorkflowModelMixin; using formsets with FormSetMixin or conditional field-groups; rendering property grids with ObjectDetailView and cv_property_display; registering static assets, CSP nonces, or SRI hashes via register_assets, or bundling them into django-pipeline with cv_sources; working with polymorphic models; showing non-ORM data (S3, external APIs) with Resource and ResourceViewMixin; folding row, toolbar or card actions into an overflow (⋯) action menu, or rendering inaccessible actions disabled instead of hidden; diagnosing crud_views system checks such as viewset.W280 or viewset.W290; or when code imports crud_views, crud_views_object_detail, crud_views_workflow, crud_views_polymorphic, or crud_views_guardian."
 ---
 
 # django-crud-views
@@ -657,7 +657,8 @@ class AuthorArchiveView(ActionViewPermissionRequired):
 
 `cv_has_access` answers "may this user perform this action at all?" (permission check). `cv_action_enabled` is a
 secondary state gate that runs only after `cv_has_access` has passed — it answers "is this action currently
-applicable to this specific object?" When it returns `False`, the action button is **hidden entirely** and a direct
+applicable to this specific object?" When it returns `False`, the action button is **hidden** (or, since 0.28.0, rendered disabled — see
+[Hide or disable inaccessible actions](#hide-or-disable-inaccessible-actions-since-0280)) and a direct
 request to the URL returns 403 for an authenticated user. Override it as a classmethod; `obj` is the target
 instance for object views (delete/update/detail/action) or the **parent** instance for a child-create view.
 
@@ -673,6 +674,106 @@ class PersonDeleteView(CrispyViewMixin, MessageMixin, DeleteViewPermissionRequir
 ```
 
 Full API and enforcement details: [references/api-reference.md](references/api-reference.md).
+
+---
+
+## Hide or disable inaccessible actions (since 0.28.0)
+
+An action is **inaccessible** when the user fails `cv_has_access` for its target view, or the target's
+`cv_action_enabled` returns `False`. By default such actions are **hidden**; mode `"disable"` renders them greyed
+out instead, so users see that the action exists.
+
+| Where | Attribute | Values |
+|---|---|---|
+| Django settings | `CRUD_VIEWS_INACCESSIBLE_ACTIONS` | `"hide"` (default), `"disable"` |
+| `ViewSet` | `inaccessible_actions` | `None` (use the setting), `"hide"`, `"disable"` |
+| `CrudView` | `cv_inaccessible_actions` | `None` (use the ViewSet), `"hide"`, `"disable"` |
+
+The mode resolves on the action's **target** view (the view the button links to), not on the page showing it —
+`cv_get_inaccessible_actions()` returns the result:
+
+```python
+class PublisherDeleteView(DeleteViewPermissionRequired):
+    cv_viewset = cv_publisher
+    cv_inaccessible_actions = "disable"  # greyed out on list rows, cards and the detail toolbar
+```
+
+- Applies everywhere an action renders: the context toolbar, list rows, cards (child card actions too), action
+  menus, and the manual tags. `cv_get_context_buttons()` includes disabled entries (`cv_disabled=True`,
+  `cv_url=None`); `{% cv_context_url %}` returns `None` for every inaccessible action in **both** modes.
+- A disabled action is a native `<button type="button" disabled data-cv-disabled="permission|state">` — no URL,
+  no `data-cv-action` / `data-cv-modal`, and no hidden POST form. Templates get `cv_disabled` and
+  `cv_disabled_reason` (`"permission"` | `"state"`).
+- Child card actions (`CardAction(child_name=...)`) check the **child** view's permission, like
+  `ChildContextButton` (before 0.28.0 they always rendered and the target answered 403).
+- Checks: `crud_views.E104` (invalid setting), `viewset.E207` (invalid `cv_inaccessible_actions`); the ViewSet
+  field is validated by pydantic.
+
+---
+
+## Action menus (since 0.28.0)
+
+Fold the less common actions of a list row, the context toolbar or a card into one Bootstrap dropdown (`⋯`).
+Each location has an **inline keys** list: named actions stay buttons, all others go into the menu.
+
+| Level | List rows | Context toolbar | Cards |
+|---|---|---|---|
+| Django settings | `CRUD_VIEWS_LIST_ACTIONS_INLINE` | `CRUD_VIEWS_CONTEXT_ACTIONS_INLINE` | `CRUD_VIEWS_CARD_ACTIONS_INLINE` |
+| `ViewSet` | `list_actions_inline` | `context_actions_inline` | `card_actions_inline` |
+| `CrudView` | `cv_list_actions_inline` | `cv_context_actions_inline` | `cv_card_actions_inline` (card views) |
+
+- `None` (default): no menu — the markup is exactly the pre-0.28 markup
+- `[]`: every action goes into the menu
+- `["detail"]`: `detail` stays a button, the rest go into the menu
+
+```python
+class AuthorListView(ListViewTableMixin, ListViewPermissionRequired):
+    cv_viewset = cv_author
+    cv_list_actions = ["detail", "update", "delete", "up", "down"]
+    cv_list_actions_inline = ["detail", "up", "down"]  # update and delete go into the menu
+
+
+class AuthorDetailView(DetailViewPermissionRequired):
+    cv_viewset = cv_author
+    cv_context_actions_inline = ["update"]  # the active "detail" shows inside the menu, marked aria-current
+
+
+class AuthorCardListView(CardListViewPermissionRequired):
+    cv_viewset = cv_author
+    cv_card_actions = [
+        CardAction(key="detail", label="Details", variant="primary", flex=True),
+        CardAction(key="update", label="Edit"),
+        CardAction(child_name="book", label="Books"),
+    ]
+    cv_card_actions_inline = ["detail"]  # cards match CardAction.key, or child_name for child actions
+```
+
+- **Resolution:** `CrudView` → `ViewSet` → setting, first value that **is not `None`** (so `[]` on a view beats a
+  list on the ViewSet). It resolves on the view that **renders** the group — unlike hide/disable, which resolves on
+  the target. Getters: `cv_get_list_actions_inline()`, `cv_get_context_actions_inline()`,
+  `cv_get_card_actions_inline()`.
+- **Matching:** list rows and the toolbar match the key as written in `cv_list_actions` / `cv_context_actions`
+  (`"home"`, not its target `"list"`). Order is kept on both sides; new actions land in the menu automatically.
+- **Never folded:** context buttons with their own `template=` / `template_code=` (incl. the filter toggle).
+  `up` / `down` can be folded but belong inline.
+- **Hide/disable:** hidden actions appear nowhere; a menu with only hidden actions renders no toggle. Disabled items
+  are `<button class="dropdown-item" disabled data-cv-disabled="…">`; a menu with only disabled items still renders.
+- **POST and modal** items work from the menu (hidden forms stay outside it). The **context toolbar renders GET
+  links only** (inline and in its menu) — put POST `ActionView`s in list rows or cards.
+- **Labels:** menu items show the target's icon (`fa-fw`) and short label (`cv_action_short_label`;
+  `CardAction.label` on cards). A context button's own `label_template[_code]` also sets its short label, so it
+  labels the menu item too. `CardAction.variant` / `flex` / `no_label` apply to inline card buttons only.
+- **Toggle icon:** `CRUD_VIEWS_ACTIONS_MENU_ICON` (default `"fa-solid fa-ellipsis"`). Row menus use Popper's fixed
+  strategy, so `.table-responsive` does not clip them. Needs the Bootstrap JS **bundle** (Popper included).
+- **Templates** (overridable): `crud_views/tags/actions_menu.html` (wrapper + list), `actions_menu_toggle.html`
+  (toggle only — override it for a split-style caret), `actions_menu_item.html`, `actions_menu_item_label.html`.
+  Projects that override `columns/actions.html`, `tags/context_actions.html` or `tags/card.html` don't get the menu
+  until they adopt the package's `{% if group is None %} … {% else %} … {% endif %}` structure.
+- **Custom loops:** `view.cv_get_list_action_group(obj)`, `cv_get_context_action_group(obj)`,
+  `cv_get_card_action_group(obj)` return an `ActionGroup` (`inline`, `menu`, `all`) or `None` when off.
+- **Checks:** `crud_views.E105` (setting not `None`/list of strings), `viewset.E208` (same for the view attribute),
+  `viewset.W290` (a view's **own** inline key isn't among that location's actions — typo; ViewSet and setting
+  values are shared defaults and never checked).
 
 ---
 
@@ -823,6 +924,11 @@ CRUD_VIEWS_FILTER_PERSISTENCE = True                   # store filter state in s
 CRUD_VIEWS_FILTER_PINNED = False                       # True = filter always open, toggle hidden
 CRUD_VIEWS_FILTER_ICON = "fa-solid fa-filter"
 CRUD_VIEWS_FILTER_RESET_BUTTON_CSS_CLASS = "btn btn-secondary"
+CRUD_VIEWS_INACCESSIBLE_ACTIONS = "hide"               # "hide" | "disable" (since 0.28.0)
+CRUD_VIEWS_LIST_ACTIONS_INLINE = None                 # action menus (since 0.28.0): keys kept as buttons
+CRUD_VIEWS_CONTEXT_ACTIONS_INLINE = None              #   None = no menu, [] = everything in the menu
+CRUD_VIEWS_CARD_ACTIONS_INLINE = None
+CRUD_VIEWS_ACTIONS_MENU_ICON = "fa-solid fa-ellipsis"
 CRUD_VIEWS_LIST_ACTIONS = ["detail", "update", "delete"]
 CRUD_VIEWS_LIST_CONTEXT_ACTIONS = ["parent", "list", "filter", "create"]
 CRUD_VIEWS_DETAIL_CONTEXT_ACTIONS = ["home", "detail", "update", "delete"]
@@ -1344,6 +1450,11 @@ put the transition record in `context["workflow_info"]`.
 
 | Mistake | Fix |
 |---|---|
+| `cv_list_actions_inline` set but no `⋯` menu appears | The project overrides `columns/actions.html` / `tags/context_actions.html` / `tags/card.html`; adopt the package's `{% if group is None %}` branch (0.28.0) |
+| POST `ActionView` in `cv_context_actions` answers 405 when clicked | The context toolbar (inline and its action menu) renders GET links only; put POST actions in `cv_list_actions` or `cv_card_actions` |
+| Startup warns `viewset.W290` | A key in the view's own `cv_*_actions_inline` is not among that location's actions — fix the typo (ViewSet/setting values are never checked) |
+| Custom `list_action.html` / `card_action.html` placeholder for `not cv_access` vanished (0.28.0) | In the default hide mode the tags pass an empty context; set the target view's `cv_inaccessible_actions = "disable"` and use the `cv_disabled` branch |
+| `ActionView` shown as a list/card/toolbar button raises `CrudViewError: no template or template_code provided` | Give it `cv_action_label_template_code` and `cv_action_short_label_template_code` — `cv_backend_only = True` does not exempt buttons |
 | Sending mail / starting Celery tasks in `cv_form_valid_hook`, `action()` or `on_transition` | They run before the commit (since 0.27.0); use `cv_on_commit(context)` |
 | Context button silently missing (0.24.2–0.27.0) | An unresolvable target (`child_key="lsit"`) is skipped at render time; since 0.27.1 `viewset.E255` reports it at startup — fix the name or register the view. Customizing a default (`home` with its own label) on a ViewSet without `list` now fails E255: drop it there |
 | `viewset.W280` flags `cv_parent_key` (0.27.0) | It was never read and is removed; the parent link's target is `ParentContextButton(key="parent", key_target=...)` |

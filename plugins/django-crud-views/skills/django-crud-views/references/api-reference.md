@@ -31,6 +31,10 @@ cv_author = ViewSet(
     ordering="-created_dt", # default queryset ordering
     icon_header="fa-regular fa-user",  # Font Awesome icon for the header
     context_buttons=[],     # override default context buttons
+    inaccessible_actions=None,     # "hide" | "disable"; None = CRUD_VIEWS_INACCESSIBLE_ACTIONS (since 0.28.0)
+    list_actions_inline=None,      # action menus (since 0.28.0): keys kept as buttons; None = setting
+    context_actions_inline=None,
+    card_actions_inline=None,
 )
 ```
 
@@ -298,6 +302,7 @@ class AuthorCardListView(ListViewTableFilterMixin, CardListViewPermissionRequire
         # Child viewset link (like LinkChildColumn for tables):
         CardAction(child_name="book", child_key="card", label="Books"),
     ]
+    cv_card_actions_inline = ["detail"]  # action menu (since 0.28.0): the rest goes into a ⋯ dropdown
 ```
 
 CardAction fields: `key` (view key in same viewset), `label`, `no_label` (icon-only), `variant` (`"primary"` / `"secondary"` / `"tertiary"`), `flex` (flex-grow-1), `child_name` (child viewset name), `child_key` (child view key, default `"list"`).
@@ -490,6 +495,9 @@ A single view can also define its own buttons via `cv_context_buttons` (a list o
 |------|------|-----------|---------|-------------|
 | `cv_has_access` | classmethod | `(cls, user, obj=None) -> bool` | permission check | Primary gate — "may this user perform this action at all?" Overridden by permission-required view variants. |
 | `cv_action_enabled` | classmethod | `(cls, user, obj=None) -> bool` | `True` | Secondary state gate — "is this action currently applicable to this object?" Evaluated only after `cv_has_access` passes. Hides the action button entirely and returns 403 for an authenticated direct request when `False`. `obj` is the target instance for object views (update/delete/detail/action) or the **parent** instance for a child-create view; resolved by `cv_get_action_object()`. |
+| `cv_get_inaccessible_actions` | classmethod | `(cls) -> str` | — | `"hide"` or `"disable"`: view → ViewSet → setting, resolved on the action's **target** view (since 0.28.0). |
+| `cv_get_list_actions_inline` / `cv_get_context_actions_inline` / `cv_get_card_actions_inline` | classmethod | `(cls) -> list[str] \| None` | — | Action-menu inline keys: view → ViewSet → setting, first value not `None`, resolved on the **rendering** view (since 0.28.0; the card getter is on `CardListView`). |
+| `cv_get_list_action_group` / `cv_get_context_action_group` / `cv_get_card_action_group` | method | `(self, obj) -> ActionGroup \| None` | — | Resolved actions split into `inline` / `menu` (`all` = both); `None` when the menu is off (since 0.28.0). |
 | `cv_get_action_object` | method | `(self) -> Model \| None` | — | Returns `get_object()` for object views, `cv_get_parent_object()` for child-create views, else `None`. Used internally by request enforcement. |
 
 ### Form Processing Hooks (CrudViewProcessFormMixin)
@@ -778,6 +786,16 @@ CRUD_VIEWS_FILTER_PERSISTENCE = True
 CRUD_VIEWS_FILTER_PINNED = False                       # True = filter always open, toggle hidden
 CRUD_VIEWS_FILTER_ICON = "fa-solid fa-filter"
 CRUD_VIEWS_FILTER_RESET_BUTTON_CSS_CLASS = "btn btn-secondary"
+
+# Inaccessible actions (since 0.28.0): hide, or render disabled; checked by crud_views.E104
+CRUD_VIEWS_INACCESSIBLE_ACTIONS = "hide"
+
+# Action menus (since 0.28.0): keys kept as buttons, the rest folds into a ⋯ dropdown;
+# None = no menu, [] = everything in the menu; checked by crud_views.E105
+CRUD_VIEWS_LIST_ACTIONS_INLINE = None
+CRUD_VIEWS_CONTEXT_ACTIONS_INLINE = None
+CRUD_VIEWS_CARD_ACTIONS_INLINE = None
+CRUD_VIEWS_ACTIONS_MENU_ICON = "fa-solid fa-ellipsis"
 
 # Default per-row actions for list views
 CRUD_VIEWS_LIST_ACTIONS = ["detail", "update", "delete"]

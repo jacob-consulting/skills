@@ -10,6 +10,14 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+### Added
+- Package 0.28.0 notes: hide or disable inaccessible actions (`CRUD_VIEWS_INACCESSIBLE_ACTIONS`,
+  `inaccessible_actions`, `cv_inaccessible_actions`, checks `crud_views.E104` / `viewset.E207`) and action menus
+  (`CRUD_VIEWS_*_ACTIONS_INLINE`, `*_actions_inline`, `cv_*_actions_inline`, `CRUD_VIEWS_ACTIONS_MENU_ICON`, group
+  methods, menu templates, checks `crud_views.E105` / `viewset.E208` / `viewset.W290`); Common Mistakes rows for
+  overridden containers, POST actions in the context toolbar, W290, hide-mode placeholders and `ActionView`
+  buttons without label templates.
+
 ## [0.10.0] — 2026-10-09
 
 ### Added
