@@ -9,6 +9,9 @@ A library that wires together class-based views, django-tables2, django-filter, 
 CRUD framework. Key concepts: a **ViewSet** groups all views for a model and auto-generates URL patterns; each
 **CrudView** subclass registers itself with the ViewSet via the `cv_viewset` attribute.
 
+Supported: Python ≥ 3.12, tested on 3.12–3.15 (3.15 since 0.29.1) with Django 4.2 / 5.2 / 6.0; Django 4.2 only on
+Python ≤ 3.13, as Django itself requires.
+
 Full API reference: see [references/api-reference.md](references/api-reference.md)
 
 ---

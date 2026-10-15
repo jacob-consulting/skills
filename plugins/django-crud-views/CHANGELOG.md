@@ -10,6 +10,10 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+### Changed
+- Package 0.29.1 notes: supported Python / Django versions stated in the intro; Python 3.15 is tested and
+  declared since 0.29.1 (Django 5.2 and 6.0; Django 4.2 stays on Python ≤ 3.13).
+
 ## [0.12.0] — 2026-10-12
 
 ### Changed
