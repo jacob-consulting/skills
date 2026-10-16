@@ -10,6 +10,8 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+## [0.14.1] — 2026-10-16
+
 ### Changed
 - Package 0.29.2 notes: the circular `ImportError` when `crud_views.lib.viewset` / `crud_views.lib.table` is imported
   first (e.g. a `Resource` with `ViewSet.PK` in `models.py`) is fixed upstream; the warning becomes a 0.29.1-and-older
@@ -214,3 +216,4 @@ Initial published release — the `django-crud-views` skill packaged as a Claude
 [0.12.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.12.0
 [0.13.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.13.0
 [0.14.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.14.0
+[0.14.1]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.14.1
