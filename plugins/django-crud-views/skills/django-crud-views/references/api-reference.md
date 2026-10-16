@@ -25,7 +25,9 @@ cv_author = ViewSet(
     name="author",          # required: identifier, used in URL names and registry
     prefix="authors",       # URL path prefix (defaults to name)
     app="myapp",            # URL namespace (optional)
-    pk="UUID",              # primary key type: "INT" | "UUID" | "STR" (default "UUID")
+    pk=None,                # URL regex for the pk; None (default) = auto-detected from the model's pk
+                            # field (UUIDField → ViewSet.PK.UUID, auto fields → PK.INT, Char/Slug → PK.STR).
+                            # Override with a ViewSet.PK constant (INT, UUID, STR, HEX) — not a bare "UUID" string
     pk_name="pk",           # URL parameter name (default "pk")
     parent=ParentViewSet(), # for nested resources
     ordering="-created_dt", # default queryset ordering
@@ -392,8 +394,7 @@ Protocol: modal GET returns the modal partial (`200`, `Vary: X-CV-Modal`); POST 
 `X-CV-Redirect` (browser navigates; messages/`cv_success_key` unaffected); invalid form / delete
 protection re-renders the partial with `422`. No project template, JS, URL, or settings changes are
 needed — the shell comes from `{% cv_config %}` and the transport JS from `{% cv_js %}`. Degrades to the
-full page for direct links, no-JS, and the `crud_views_plain` theme. See the `Modal Views` section in
-SKILL.md for the full guide.
+full page for direct links, no-JS, and the `crud_views_plain` theme. See [form-views.md](form-views.md#modal-views) for the full guide.
 
 ---
 
@@ -623,36 +624,10 @@ Set `cv_filter_pinned = True` to render the filter always-open and hide the togg
 
 ## Formsets
 
-Use `FormSetMixin` on Create/Update views to manage nested inline records.
-
-```python
-from crud_views.lib.formsets import FormSet, FormSets, FormSetMixin, InlineFormSet
-
-class ItemFormSet(InlineFormSet):
-    model = Item
-    parent_model = Order
-    fk_name = "order"
-    fields = ["name", "quantity", "price"]
-    extra = 1
-
-    def get_helper_layout_fields(self):
-        return [Row(Column4("name"), Column4("quantity"), Column4("price"))]
-
-class OrderCreateView(FormSetMixin, CrispyViewMixin, CreateViewPermissionRequired):
-    cv_viewset = cv_order
-    form_class = OrderCreateForm
-    cv_formsets = FormSets(formsets={
-        "items": FormSet(
-            klass=ItemFormSet,
-            title="Order Items",
-            fields=["name", "quantity", "price"],
-            pk_field="id",
-            # children={"sub_items": FormSet(...)}  # optional nested formsets
-        )
-    })
-```
-
-Formsets support multi-level nesting via the `children` dict on `FormSet`.
+`FormSetMixin` + `cv_formsets = FormSets(formsets={"key": FormSet(title=..., klass=..., fields=[...], pk_field="id", children={...})})`.
+`klass` is the result of Django's `inlineformset_factory(Parent, Child, formset=<InlineFormSet subclass>, form=..., ...)`
+— not the `InlineFormSet` subclass itself. The parent form's layout needs a `Formsets()` element and
+`helper.form_tag = False`. Full working example: [forms-and-formsets.md](forms-and-formsets.md).
 
 ---
 
@@ -764,81 +739,7 @@ class VehicleListView(ListViewTableMixin, ListViewPermissionRequired):
 
 ## Settings
 
-Settings are flat, module-level Django settings, each prefixed with `CRUD_VIEWS_`
-(read via `getattr(settings, "CRUD_VIEWS_<NAME>", default)`) — there is no `CRUD_VIEWS = {...}`
-dict. Only `CRUD_VIEWS_EXTENDS` is required; the rest show their defaults:
-
-```python
-# Required
-CRUD_VIEWS_EXTENDS = "base.html"                       # base template to extend
-
-# Manage view
-CRUD_VIEWS_MANAGE_VIEWS_ENABLED = "debug_only"         # "yes" | "no" | "debug_only"
-
-# Session
-CRUD_VIEWS_SESSION_DATA_KEY = "viewset"
-
-# Origin parameter for cv_cancel_keys / cv_success_keys (since 0.26.0; was CRUD_VIEWS_CANCEL_ORIGIN_PARAM)
-CRUD_VIEWS_ORIGIN_PARAM = "cv_from"                    # query param carrying the origin view key; must match ^[a-z][a-z0-9_]*$ (crud_views.E103)
-
-# Filter
-CRUD_VIEWS_FILTER_PERSISTENCE = True
-CRUD_VIEWS_FILTER_PINNED = False                       # True = filter always open, toggle hidden
-CRUD_VIEWS_FILTER_ICON = "fa-solid fa-filter"
-CRUD_VIEWS_FILTER_RESET_BUTTON_CSS_CLASS = "btn btn-secondary"
-
-# Inaccessible actions (since 0.28.0): hide, or render disabled; checked by crud_views.E104
-CRUD_VIEWS_INACCESSIBLE_ACTIONS = "hide"
-
-# Action menus (since 0.28.0): keys kept as buttons, the rest folds into a ⋯ dropdown;
-# None = no menu, [] = everything in the menu; checked by crud_views.E105
-CRUD_VIEWS_LIST_ACTIONS_INLINE = None
-CRUD_VIEWS_CONTEXT_ACTIONS_INLINE = None
-CRUD_VIEWS_CARD_ACTIONS_INLINE = None
-CRUD_VIEWS_ACTIONS_MENU_ICON = "fa-solid fa-ellipsis"
-
-# Default per-row actions for list views
-CRUD_VIEWS_LIST_ACTIONS = ["detail", "update", "delete"]
-
-# Default page-level (context) actions per view type
-CRUD_VIEWS_LIST_CONTEXT_ACTIONS = ["parent", "list", "filter", "create"]
-CRUD_VIEWS_DETAIL_CONTEXT_ACTIONS = ["home", "detail", "update", "delete"]
-CRUD_VIEWS_CREATE_CONTEXT_ACTIONS = ["home", "create"]
-CRUD_VIEWS_UPDATE_CONTEXT_ACTIONS = ["home", "detail", "update", "delete"]
-CRUD_VIEWS_DELETE_CONTEXT_ACTIONS = ["home", "detail", "update", "delete"]
-CRUD_VIEWS_MANAGE_CONTEXT_ACTIONS = ["home"]
-CRUD_VIEWS_CREATE_SELECT_CONTEXT_ACTIONS = ["home", "create_select"]
-```
-
-### Object-detail settings (for `ObjectDetailView`)
-
-Renamed in 0.17.0 from bare `OBJECT_DETAIL_*` to the `CRUD_VIEWS_OBJECT_DETAIL_*` prefix. The old
-names are no longer read at all — they fail silently, leaving defaults in place.
-
-```python
-CRUD_VIEWS_OBJECT_DETAIL_TEMPLATE_PACK_LAYOUT = "split-card"  # layout pack
-CRUD_VIEWS_OBJECT_DETAIL_TEMPLATE_PACK_TYPES = "default"
-CRUD_VIEWS_OBJECT_DETAIL_ICONS_LIBRARY = "bootstrap"          # "bootstrap" (default) | "fontawesome"
-CRUD_VIEWS_OBJECT_DETAIL_PROPERTY_TEXT_NEWLINE = "linebreaksbr"
-
-# Class / type / prefix default per icon library and are rarely set by hand:
-#   bootstrap   → class "bi", type None,      prefix "bi"
-#   fontawesome → class "fa", type "regular", prefix "fa"
-# CRUD_VIEWS_OBJECT_DETAIL_ICONS_CLASS = "fa"     # base CSS class
-# CRUD_VIEWS_OBJECT_DETAIL_ICONS_TYPE = "solid"   # suffix → fa-solid
-# CRUD_VIEWS_OBJECT_DETAIL_ICONS_PREFIX = "fa"    # icon name prefix
-# CRUD_VIEWS_OBJECT_DETAIL_NAMED_ICONS = {...}    # override the named-icon map
-```
-
-The icon class is built as `{class}-{type} {prefix}-{name}` (type omitted when None), so
-`icons_type` accepts any Font Awesome style suffix, not a fixed two-value set.
-
-### Asset registry / CSP settings
-
-```python
-CRUD_VIEWS_CSP_NONCE_ATTR = "csp_nonce"   # request attribute holding the per-request CSP nonce
-CRUD_VIEWS_ASSETS_BUNDLED = False        # True: cv_js/cv_css emit only CDN entries; pipeline bundles the rest (0.25.0)
-```
+All settings with defaults: see [settings.md](settings.md).
 
 ---
 
@@ -967,7 +868,7 @@ when none is present.
 
 **Checks:** `crud_views.E330` (integrity not `sha256-`/`sha384-`/`sha512-` prefixed),
 `crud_views.W332` (integrity on a same-origin static path), and for the pipeline integration (0.25.0)
-`W340`–`W345` (see SKILL.md "Bundling with django-pipeline").
+`W340`–`W345` (see [assets.md](assets.md#bundling-with-django-pipeline)).
 
 **Command:** `manage.py cv_assets [--external] [--kind js|css] [--format table|json]` lists every
 asset with its delivery (`tag`, `tag (CDN)`, `pipeline:<package>`, `none`, `none (emit=False)`) (0.25.0).

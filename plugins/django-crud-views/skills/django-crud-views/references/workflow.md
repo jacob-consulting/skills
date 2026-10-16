@@ -318,7 +318,7 @@ class CampaignTable(Table):
     state = tables.Column(accessor="state_badge")   # renders HTML badge
 
 
-# property grid → ObjectDetailView, not core DetailView (see SKILL.md "Detail views")
+# property grid → ObjectDetailView, not core DetailView (see detail-views.md)
 class CampaignDetailView(ObjectDetailViewPermissionRequired):
     cv_viewset = cv_campaign
     cv_property_display = [

@@ -10,6 +10,29 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+### Changed
+- Restructured the skill: `SKILL.md` shrinks from 1,499 to ~250 lines (74 KB → 17 KB loaded per trigger) and holds
+  the core model, setup, the five-view pattern, nesting, hooks, a routing table and the current-version Common
+  Mistakes. Feature sections moved verbatim into topic references (`detail-views`, `lists-and-cards`, `form-views`,
+  `forms-and-formsets`, `actions-and-buttons`, `guardian`, `polymorphic`, `assets`, `templates-and-navigation`,
+  `settings`, `system-checks`). The skill description is unchanged.
+- Version history ("before 0.x", renamed settings/classes, upgrade-only fixes) moved to `references/migration.md`.
+- `references/settings.md` replaces the two partial settings lists and is checked against the package's defaults.
+
+### Added
+- `references/system-checks.md`: index of every check ID the package defines (several were undocumented, e.g.
+  `crud_views.E100`, `viewset.E262`, `crud_views.E300`), each pointing at its reference.
+- `CRUD_VIEWS_STRICT` (raise instead of swallowing unresolvable view keys; defaults to `DEBUG`).
+- Note that Resources belong in `views.py`: importing `crud_views.lib.viewset` / `crud_views.lib.table` from
+  `models.py` raises a circular `ImportError` in package 0.29.1.
+
+### Fixed
+- Formsets example: `FormSet(klass=...)` takes the result of `inlineformset_factory(..., formset=<InlineFormSet
+  subclass>)`, and the parent form needs a `Formsets()` layout element plus `form_tag = False`. The previous example
+  (`model`/`fields` on the `InlineFormSet` subclass) crashed at import.
+- `ViewSet(pk=...)` is a URL regex, auto-detected from the model by default; the API reference claimed a default of
+  the string `"UUID"`.
+
 ## [0.13.0] — 2026-10-15
 
 ### Changed
