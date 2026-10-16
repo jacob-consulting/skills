@@ -55,6 +55,27 @@ before, the parent check ignored the flag and returned 403.
 - **Top-level creates** (no parent): standard model-level `add_<model>` permission is checked.
 - **Child creates** (with parent viewset): guardian checks per-object permission on the parent using `cv_guardian_parent_create_permission`. Child create views **must** use `GuardianCreateViewPermissionRequired` — using plain `CreateViewPermissionRequired` hides the button permanently and blocks the form page.
 
+### Grant the creator access to what they create
+
+Nothing grants per-object permissions automatically. In strict mode a user who just created an object
+**cannot see it**: the success redirect lands on a list that filters it out, and its detail page returns 403.
+Grant the creator their permissions in `cv_form_valid`, after `super()` has saved the object. This is a DB write,
+so it belongs inside the transaction (not in `cv_on_commit`): if the save rolls back, so do the grants.
+
+```python
+class PublisherCreateView(CrispyViewMixin, MessageMixin, GuardianCreateViewPermissionRequired):
+    cv_viewset = cv_publisher
+    form_class = PublisherForm
+
+    def cv_form_valid(self, context):
+        super().cv_form_valid(context)                  # saves; self.object is set
+        for perm in ("view", "change", "delete"):
+            cv_publisher.assign_perm(perm, self.request.user, self.object)
+```
+
+Do the same on child create views (with the child ViewSet's `assign_perm`), unless child rows inherit access
+from the parent (next section).
+
 ### Child create button visibility
 
 `cv_has_access` is a classmethod — it has no access to request or URL kwargs. When the "create" button is rendered from a child list page, `obj=None` and the parent cannot be determined inside `cv_has_access` alone.
@@ -88,6 +109,55 @@ cv_book = GuardianViewSet(
 ```
 
 Setting either to `None` disables the parent check for that view type.
+
+### Do children inherit the parent's grant? (No, by default)
+
+A child view on `Guardian*ViewPermissionRequired` checks **two** things: the parent check above *and* the
+per-object permission on the child row itself. So a user with `view` on a publisher, but no grants on its books,
+gets an **empty** book list and 403 on each book. Every book needs its own grant (or a group grant).
+
+When the parent grant should cover the children ("whoever may see the publisher sees all its books"), keep the
+parent check and drop only the per-row check. The parent check in `dispatch()` is then the only gate:
+
+- **List:** stay on `GuardianListViewPermissionRequired` and skip only its per-row queryset filter. Don't switch
+  to the plain list view: the guardian list is what resolves the parent for the child **create** button. On a plain
+  list that button is always hidden.
+- **Detail:** `GuardianParentPermissionMixin` plus the **plain** detail view, with `cv_has_access` opened up.
+  Without that, the plain view checks the model-level `view_book` permission and hides the row buttons.
+
+```python
+from crud_views_guardian.lib.mixins import GuardianParentPermissionMixin, GuardianQuerysetMixin
+
+
+class BookListView(ListViewTableMixin, GuardianListViewPermissionRequired):
+    cv_viewset = cv_book
+    table_class = BookTable
+    cv_list_actions = ["detail"]
+
+    def get_queryset(self):
+        # skip GuardianQuerysetMixin's per-row filter; still only this publisher's books
+        return super(GuardianQuerysetMixin, self).get_queryset()
+
+
+class ParentGrantAccess(GuardianParentPermissionMixin):
+    @classmethod
+    def cv_has_access(cls, user, obj=None):
+        return True   # button visibility only; dispatch() still enforces the parent grant
+
+
+class BookDetailView(ParentGrantAccess, DetailViewPermissionRequired):
+    cv_viewset = cv_book
+    template_name = "catalog/book_detail.html"
+```
+
+Verified behaviour: with only `view` on publisher P1, the user sees all of P1's books (none of P2's) and can open
+them, P2's book pages return 403, and P1's "create" button appears only once the user also has P1's
+`cv_guardian_parent_create_permission`.
+
+All non-create child views share `cv_guardian_parent_permission`. If you also put update/delete on
+`ParentGrantAccess`, anyone with `view` on the parent could edit its children. Keep those on
+`GuardianUpdateViewPermissionRequired` / `GuardianDeleteViewPermissionRequired` (per-row grants), or give them their own
+access rule.
 
 ### Cascading Deletes with Per-Object Permissions
 

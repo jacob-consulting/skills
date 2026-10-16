@@ -230,7 +230,10 @@ django-guardian, child create views need `GuardianCreateViewPermissionRequired`:
 | `AttributeError: type object '…FormSet' has no attribute 'can_order'` | `FormSet(klass=...)` needs the result of `inlineformset_factory(..., formset=YourInlineFormSet)`, not the `InlineFormSet` subclass; don't put `model`/`fields` on the subclass | forms-and-formsets.md |
 | Formset rows never render | The parent form layout lacks `Formsets()`, or crispy's `form_tag` is still on | forms-and-formsets.md |
 | Polymorphic list offers `"create"` | Use `cv_context_actions = ["create_select"]` | polymorphic.md |
+| Polymorphic create form page: `NoReverseMatch … '<name>-create'` | Set `cv_context_actions = ["home"]` on the polymorphic create view (the default `"create"` button needs the content type) | polymorphic.md |
 | Guardian: users see no objects | Strict mode ignores model-level grants; call `assign_perm`, or set `cv_guardian_accept_global_perms = True` | guardian.md |
+| Guardian: creator can't see the object they just created | Nothing grants automatically; `assign_perm` the creator in `cv_form_valid` after `super()` | guardian.md |
+| Guardian: grant on the parent, but its child rows stay hidden | Children are checked per row too; for inherited access skip the per-row filter (keep the guardian list view, or the create button vanishes) | guardian.md |
 | Guardian child create: button always hidden | The child create view uses `CreateViewPermissionRequired` instead of `GuardianCreateViewPermissionRequired` | guardian.md |
 | Guardian child create: button always visible | `cv_guardian_parent_create_permission` not set on the child `GuardianViewSet` | guardian.md |
 | Hand-placed `{% cv_context_button %}` for a POST key does nothing | Also render `{% cv_context_action_form "key" %}` outside any `.btn-group` | detail-views.md |

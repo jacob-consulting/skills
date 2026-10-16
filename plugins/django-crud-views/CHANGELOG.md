@@ -10,6 +10,22 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+### Added
+- `references/guardian.md`: granting the creator per-object permissions in `cv_form_valid` (strict mode otherwise
+  hides what a user just created), and how child rows relate to the parent grant: by default they are checked
+  per row as well, plus a verified recipe for children that inherit the parent's grant without losing the child
+  create button.
+- `references/polymorphic.md`: per-subtype property-grid groups (override `property_display`), and a "type" list
+  column.
+- Common Mistakes rows for the two guardian cases and the polymorphic create-page `NoReverseMatch`.
+
+### Fixed
+- `references/polymorphic.md`: the polymorphic create view needs its own `cv_context_actions` (e.g. `["home"]`).
+  The inherited `"create"` button can't be reversed without the content type, so the step-2 form page crashed with
+  `NoReverseMatch`.
+- `references/workflow.md`: the `on_transition` example sent a notification inside the transition's transaction.
+  It now does a DB follow-up there and sends the notification from `cv_on_commit` (`context["workflow_info"]`).
+
 ## [0.14.1] — 2026-10-16
 
 ### Changed

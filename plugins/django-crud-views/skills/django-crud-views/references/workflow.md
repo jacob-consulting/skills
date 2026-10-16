@@ -72,6 +72,7 @@ class Campaign(WorkflowModelMixin, models.Model):
     COMMENT_DEFAULT = WorkflowComment.OPTIONAL  # default: WorkflowComment.NONE
 
     name = models.CharField(max_length=128)
+    activated_at = models.DateTimeField(null=True, blank=True)
     state = FSMField(default=CampaignState.NEW, choices=CampaignState.choices)
 
     @transition(
@@ -258,16 +259,30 @@ class CampaignWorkflowView(CrispyViewMixin, MessageMixin, WorkflowViewPermission
 
 ## on_transition Hook
 
-Override to run custom logic after a successful transition:
+`on_transition` runs **inside** the transition's transaction, right after the state is saved and the
+`WorkflowInfo` record is written. Use it for **database follow-ups** that must roll back together with the
+transition. Put **side effects** (mail, Celery tasks, webhooks) in `cv_on_commit(context)`, which runs only after
+the commit; `context["workflow_info"]` holds the new `WorkflowInfo` there:
 
 ```python
+from django.utils import timezone
+
+
 class CampaignWorkflowView(CrispyViewMixin, MessageMixin, WorkflowViewPermissionRequired):
     cv_viewset = cv_campaign
     form_class = CampaignWorkflowForm
 
     def on_transition(self, info, transition, state_old, state_new, comment, user, data):
-        # e.g. send notification, trigger async task
-        send_notification(self.object, state_new, user)
+        # DB follow-up, same transaction: rolls back if anything later fails
+        if state_new == CampaignState.ACTIVE:
+            self.object.activated_at = timezone.now()
+            self.object.save(update_fields=["activated_at"])
+
+    def cv_on_commit(self, context):
+        # side effect, after the commit only: never sent for a rolled-back transition
+        info = context["workflow_info"]
+        if info.state_new == CampaignState.SUCCESS:
+            send_notification(self.object, info.state_new, info.user)
 ```
 
 | Parameter | Description |
