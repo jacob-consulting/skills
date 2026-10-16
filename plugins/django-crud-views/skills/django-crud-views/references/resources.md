@@ -29,10 +29,10 @@ instead. Resources are for rendering data that already lives somewhere else.
 Subclass `Resource` like a Pydantic model, with an inner `Meta` (same idiom as
 Django's model `Meta`) and a `cv_get_items` classmethod that returns all rows:
 
-Define Resource classes in `views.py` (or a module imported from it), **not** in `models.py`.
-`models.py` is imported while Django loads apps; importing `crud_views.lib.viewset` (for
-`ViewSet.PK`) or `crud_views.lib.table` that early raises a circular `ImportError` in 0.29.1.
-`models.py` should hold only the permission-holder model (see [Permissions](#permissions)).
+A Resource is not a Django model, so it can live in any module — `views.py` next to its views is
+the usual place, with `models.py` holding only the permission-holder model (see
+[Permissions](#permissions)). Up to package 0.29.1, defining it in `models.py` with
+`ViewSet.PK` raised a circular `ImportError` at startup; fixed in 0.29.2.
 
 ```python
 import hashlib

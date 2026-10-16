@@ -11,7 +11,7 @@ subclass registers itself with its ViewSet through `cv_viewset`, and sibling vie
 (`"list"`, `"detail"`, `"update"`, …) to render action buttons and redirects.
 
 Supported: Python ≥ 3.12, tested on 3.12–3.15 (3.15 since 0.29.1) with Django 4.2 / 5.2 / 6.0; Django 4.2 only on
-Python ≤ 3.13, as Django itself requires. This skill describes package **0.29.1**. If the project pins an older
+Python ≤ 3.13, as Django itself requires. This skill describes package **0.29.2**. If the project pins an older
 version, or code mentions names you can't find here, read [references/migration.md](references/migration.md).
 
 ## How to use this skill
@@ -241,7 +241,7 @@ django-guardian, child create views need `GuardianCreateViewPermissionRequired`:
 | Overriding `tags/list_action.html` / `tags/context_action.html` loses the accessible name | Keep `<span class="visually-hidden">{{ cv_action_label }}</span>` and the icon's `aria-hidden="true"`. Prefer that over `aria-label`: same name, and Sonar's `Web:S7927` misreads `aria-label` next to template tags | |
 | `card-rows` detail tooltip never appears | Needs `{% cv_js %}` and Bootstrap's JS; for markup you inject yourself call `cv.initTooltips(root)` | detail-views.md |
 | Signed card ordering link `?order=+name` | `+` decodes to a space; ascending is the bare name `?order=name`; in signed mode `dir` is ignored | lists-and-cards.md |
-| `ImportError: cannot import name 'PrimaryKeys' ... (circular import)` at startup | A `models.py` imports `crud_views.lib.viewset` / `crud_views.lib.table` (e.g. a `Resource` using `ViewSet.PK`); keep crud_views code in `views.py` | resources.md |
+| `ImportError: cannot import name 'PrimaryKeys' ... (circular import)` at startup | Package ≤ 0.29.1 and a `models.py` imports `crud_views.lib.viewset` / `crud_views.lib.table` (e.g. a `Resource` using `ViewSet.PK`). Fixed in 0.29.2 — upgrade, or keep that code in `views.py` | migration.md |
 | `ImportError` on `import crud_views` | `django-filter` and `django-crispy-forms` are required dependencies; fix the install | |
 | `PIPELINE` built with `[*cv_sources("js"), ...]` → `AppRegistryNotReady` | Keep it lazy: `cv_sources("js", before=[...], after=[...])` or `[...] + cv_sources("js")` | assets.md |
 | Extension bundled by pipeline in CDN mode (`W345`) | Switch the extension to vendored mode (e.g. datetimepicker `SOURCE="vendored"` + `cv_vendor_datetimepicker`); list CDN entries with `manage.py cv_assets --external` | assets.md |

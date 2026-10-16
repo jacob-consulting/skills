@@ -1,8 +1,14 @@
 # Upgrading and older package versions
 
-The rest of this skill describes the current package (0.29.1). Read this file when a project pins an
+The rest of this skill describes the current package (0.29.2). Read this file when a project pins an
 older `django-crud-views`, when you are upgrading one, or when code or errors mention names that no
 longer exist. Newest first.
+
+## 0.29.2
+
+| Symptom on older versions | Change |
+|---|---|
+| `ImportError: cannot import name 'PrimaryKeys' from partially initialized module 'crud_views.lib.viewset'` at startup (up to 0.29.1) | Importing `crud_views.lib.viewset` or `crud_views.lib.table` before any other crud_views module — typically from a `models.py`, e.g. a `Resource` using `ViewSet.PK` — hit a circular import. Fixed in 0.29.2; on older versions keep that code in `views.py` |
 
 ## 0.29.0
 

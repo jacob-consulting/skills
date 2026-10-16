@@ -10,6 +10,11 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+### Changed
+- Package 0.29.2 notes: the circular `ImportError` when `crud_views.lib.viewset` / `crud_views.lib.table` is imported
+  first (e.g. a `Resource` with `ViewSet.PK` in `models.py`) is fixed upstream; the warning becomes a 0.29.1-and-older
+  note in `references/migration.md`, and the skill now describes package 0.29.2.
+
 ## [0.14.0] — 2026-10-16
 
 ### Changed
