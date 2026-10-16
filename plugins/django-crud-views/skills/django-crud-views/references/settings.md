@@ -52,6 +52,7 @@ CRUD_VIEWS_UPDATE_CONTEXT_ACTIONS = ["home", "detail", "update", "delete"]
 CRUD_VIEWS_DELETE_CONTEXT_ACTIONS = ["home", "detail", "update", "delete"]
 CRUD_VIEWS_MANAGE_CONTEXT_ACTIONS = ["home"]
 CRUD_VIEWS_CREATE_SELECT_CONTEXT_ACTIONS = ["home", "create_select"]
+CRUD_VIEWS_POLYMORPHIC_CREATE_CONTEXT_ACTIONS = ["home"]   # since 0.29.3; never "create" (needs the content type)
 
 # Breadcrumbs: leading items, e.g. [{"title": "Home", "url_name": "home"}] (crud_views.E102)
 CRUD_VIEWS_BREADCRUMB_PREFIX = []

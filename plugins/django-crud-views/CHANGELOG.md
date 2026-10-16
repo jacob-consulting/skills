@@ -10,6 +10,12 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+### Changed
+- Package 0.29.3: the polymorphic create view defaults to `["home"]` context actions (new setting
+  `CRUD_VIEWS_POLYMORPHIC_CREATE_CONTEXT_ACTIONS`) and its URL loses the double slash (`create/ct/<id>/`). The
+  `cv_context_actions = ["home"]` workaround becomes a 0.29.2-and-older note in `references/migration.md`, and the
+  skill now describes package 0.29.3.
+
 ## [0.15.0] — 2026-10-16
 
 ### Added

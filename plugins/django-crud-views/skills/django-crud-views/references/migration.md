@@ -1,8 +1,15 @@
 # Upgrading and older package versions
 
-The rest of this skill describes the current package (0.29.2). Read this file when a project pins an
+The rest of this skill describes the current package (0.29.3). Read this file when a project pins an
 older `django-crud-views`, when you are upgrading one, or when code or errors mention names that no
 longer exist. Newest first.
+
+## 0.29.3
+
+| Symptom on older versions | Change |
+|---|---|
+| Polymorphic create form page (step 2) fails with `NoReverseMatch: Reverse for '<name>-create' with no arguments not found` (up to 0.29.2) | `PolymorphicCreateView` inherited the create view's `["home", "create"]` actions, and `"create"` can't be reversed without the content type. Since 0.29.3 it defaults to `["home"]` (`CRUD_VIEWS_POLYMORPHIC_CREATE_CONTEXT_ACTIONS`) (#193). On older versions set `cv_context_actions = ["home"]` on the view |
+| Polymorphic create URL is `<prefix>/create//ct/<id>/` (up to 0.29.2) | Since 0.29.3 it is `<prefix>/create/ct/<id>/`; the double-slash form still resolves. Code that reverses by name is unaffected; update hardcoded URLs in tests |
 
 ## 0.29.2
 

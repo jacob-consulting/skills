@@ -27,7 +27,6 @@ class VehicleCreateSelectView(CrispyViewMixin, PolymorphicCreateSelectViewPermis
 class VehicleCreateView(CrispyViewMixin, PolymorphicCreateViewPermissionRequired):
     cv_viewset = cv_vehicle
     polymorphic_forms = {Car: CarForm, Truck: TruckForm}
-    cv_context_actions = ["home"]   # required, see below
 
 class VehicleUpdateView(CrispyViewMixin, PolymorphicUpdateViewPermissionRequired):
     cv_viewset = cv_vehicle
@@ -47,10 +46,10 @@ class VehicleDetailView(ObjectDetailMixin, PolymorphicDetailViewPermissionRequir
 
 List view must use `cv_context_actions = ["create_select"]` instead of `"create"`.
 
-**Set `cv_context_actions` on the polymorphic create view** (e.g. `["home"]`, or `["home", "create_select"]`).
-Create views inherit the default `["home", "create"]`, and the `"create"` button can't be reversed without the
-content-type id in the URL. The step-2 form page then fails with
-`NoReverseMatch: Reverse for '<name>-create' with no arguments not found`.
+The step-2 create view (URL `<prefix>/create/ct/<content-type id>/`) has its own context actions, default
+`["home"]` (`CRUD_VIEWS_POLYMORPHIC_CREATE_CONTEXT_ACTIONS`). Never add `"create"` to them: that button can't be
+reversed without the content type, so the page fails with `NoReverseMatch`. Up to package 0.29.2 the view
+inherited `["home", "create"]` and needed `cv_context_actions = ["home"]` set by hand ([migration.md](migration.md)).
 
 ### Subtype-specific fields in the property grid
 
