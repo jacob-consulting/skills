@@ -6,1494 +6,242 @@ description: "Build Django CRUD interfaces using the django-crud-views package. 
 # django-crud-views
 
 A library that wires together class-based views, django-tables2, django-filter, and django-crispy-forms into a coherent
-CRUD framework. Key concepts: a **ViewSet** groups all views for a model and auto-generates URL patterns; each
-**CrudView** subclass registers itself with the ViewSet via the `cv_viewset` attribute.
+CRUD framework. A **ViewSet** groups all views for one model and generates their URL patterns; each **CrudView**
+subclass registers itself with its ViewSet through `cv_viewset`, and sibling views find each other by **key**
+(`"list"`, `"detail"`, `"update"`, …) to render action buttons and redirects.
 
 Supported: Python ≥ 3.12, tested on 3.12–3.15 (3.15 since 0.29.1) with Django 4.2 / 5.2 / 6.0; Django 4.2 only on
-Python ≤ 3.13, as Django itself requires.
+Python ≤ 3.13, as Django itself requires. This skill describes package **0.29.1**. If the project pins an older
+version, or code mentions names you can't find here, read [references/migration.md](references/migration.md).
 
-Full API reference: see [references/api-reference.md](references/api-reference.md)
+## How to use this skill
 
----
+This file holds the core model and the patterns almost every task needs. Each feature beyond that has its own
+reference file with exact import paths, attribute names and the startup checks that guard it. **Read the matching
+file before writing code for that feature** — the attribute names are specific (`cv_cancel_keys`, not
+`cancel_keys`), many features have non-obvious rules (mixin order, which view types support modals, Guardian's
+strict mode), and guessing produces code that silently does nothing or fails `manage.py check`.
 
-## Quick Reference
-
-| View class | Use for |
+| Task | Read |
 |---|---|
-| `ListViewPermissionRequired` | Paginated list with table |
-| `DetailViewPermissionRequired` | Single-object display with your own template |
-| `ObjectDetailViewPermissionRequired` | Single-object property grid (`crud_views_object_detail`) |
-| `CreateViewPermissionRequired` | New object form |
-| `UpdateViewPermissionRequired` | Edit object form |
-| `DeleteViewPermissionRequired` | Confirm-delete form |
-| `CustomFormViewPermissionRequired` | Custom form attached to an existing object |
-| `ActionViewPermissionRequired` | One-click action on an existing object |
-| `CardListViewPermissionRequired` | Card grid with action buttons |
-| `WorkflowViewPermissionRequired` | FSM state transitions with audit log |
+| First ViewSet, step by step | [quickstart.md](references/quickstart.md) |
+| Detail page: own template vs property grid (`cv_property_display`, `ObjectDetailView`) | [detail-views.md](references/detail-views.md) |
+| Card grids, filters (django-filter), ordering, up/down reordering | [lists-and-cards.md](references/lists-and-cards.md) |
+| Delete protection / cascade display, custom form views, one-click action views, cancel/success redirect targets, modals, transactions and `cv_on_commit` | [form-views.md](references/form-views.md) |
+| Inline formsets, conditional field-groups and conditional formsets | [forms-and-formsets.md](references/forms-and-formsets.md) |
+| Nested (child) ViewSets, context buttons (child/sibling/view-level), disabling or hiding actions, `⋯` action menus | [actions-and-buttons.md](references/actions-and-buttons.md) |
+| Per-object permissions with django-guardian | [guardian.md](references/guardian.md) |
+| Polymorphic models (django-polymorphic) | [polymorphic.md](references/polymorphic.md) |
+| FSM workflows (django-fsm-2), transitions, audit log | [workflow.md](references/workflow.md) |
+| Non-ORM data (S3, REST APIs) via `Resource` | [resources.md](references/resources.md) |
+| Static assets, CSP nonces, SRI, django-pipeline bundling | [assets.md](references/assets.md) |
+| Base-template override, breadcrumbs | [templates-and-navigation.md](references/templates-and-navigation.md) |
+| All `CRUD_VIEWS_*` settings | [settings.md](references/settings.md) |
+| A system check fired (`viewset.E255`, `crud_views.W345`, …) | [system-checks.md](references/system-checks.md) |
+| Every ViewSet / view attribute, mixins, columns, import cheatsheet | [api-reference.md](references/api-reference.md) |
+| Upgrading, or a project on an older version | [migration.md](references/migration.md) |
 
-Mixins always go **before** the base view class in MRO: `CrispyViewMixin, MessageMixin, CreateViewPermissionRequired`.
+After wiring views, run `python manage.py check`: most misconfigurations are reported there at startup.
 
 ---
 
-## Minimal Pattern
+## Setup
 
 ```python
-from crud_views.lib.viewset import ViewSet
-from crud_views.lib.views import ListViewPermissionRequired, ListViewTableMixin
-from crud_views.lib.table import Table, UUIDLinkDetailColumn
+# pip install django-crud-views   (extras: [guardian], [ordered], [polymorphic], [workflow], [all])
+INSTALLED_APPS = [
+    ...,
+    "django.contrib.humanize",
+    "django_bootstrap5",
+    "crispy_forms",
+    "crispy_bootstrap5",
+    "django_tables2",
+    "crud_views_object_detail",          # only if you use ObjectDetailView (property grid)
+    "crud_views.apps.CrudViewsConfig",
+    "myapp",
+]
+CRISPY_TEMPLATE_PACK = "bootstrap5"
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRUD_VIEWS_EXTENDS = "myapp/crud_views.html"   # required: your base template (crud_views.E100 if missing)
+```
 
-cv_author = ViewSet(model=Author, name="author")
+The `CRUD_VIEWS_EXTENDS` template is what every crud_views page extends. It must `{% load crud_views %}`, render
+`{% cv_css %}` and `{% cv_js %}` (core JS/CSS and registered bundles) and `{% cv_config %}` (modal shell), and define
+the blocks the views fill — at least `{% block cv_content %}`, typically also `cv_header`, `cv_context` (with
+`{% cv_context_actions object %}`), `cv_paragraph` and `cv_filter`. All other settings are optional:
+[settings.md](references/settings.md).
+
+---
+
+## View classes
+
+| View class | Import from | Use for |
+|---|---|---|
+| `ListViewPermissionRequired` (+ `ListViewTableMixin`) | `crud_views.lib.views` | Paginated list with a django-tables2 table |
+| `DetailViewPermissionRequired` | `crud_views.lib.views` | Single object with your own template |
+| `ObjectDetailViewPermissionRequired` | `crud_views_object_detail.lib` | Single object as a property grid |
+| `CreateViewPermissionRequired` | `crud_views.lib.views` | New object form |
+| `UpdateViewPermissionRequired` | `crud_views.lib.views` | Edit object form |
+| `DeleteViewPermissionRequired` | `crud_views.lib.views` | Confirm-delete form (`CrispyDeleteForm`) |
+| `CustomFormViewPermissionRequired` | `crud_views.lib.views.form` | Custom form attached to an existing object |
+| `ActionViewPermissionRequired` | `crud_views.lib.views` | One-click POST action on an existing object |
+| `CardListViewPermissionRequired` | `crud_views.lib.views` | Card grid with action buttons |
+| `WorkflowViewPermissionRequired` | `crud_views_workflow.lib.views` | FSM state transitions with audit log |
+
+Every class also exists without `PermissionRequired` (no permission check). Guardian variants
+(`Guardian…PermissionRequired` in `crud_views_guardian.lib.views`) exist for list, card, detail, create, update,
+delete and action views. The `PermissionRequired` variants check the Django model permission matching the view
+(`view_`, `add_`, `change_`, `delete_<model>`) and hide action buttons the user can't use.
+
+**Mixins always go before the base view class:** `CrispyViewMixin, MessageMixin, CreateViewPermissionRequired`.
+
+Buttons are configured by key: `cv_list_actions` (per-row buttons on list/card views), `cv_context_actions`
+(page-level toolbar). Custom views register a new key with `cv_key` and `cv_path`.
+
+---
+
+## Core pattern: one model, five views
+
+```python
+# myapp/views.py
+import django_tables2 as tables
+from crispy_forms.layout import Row
+from crud_views.lib.crispy import Column4, CrispyDeleteForm, CrispyModelForm, CrispyViewMixin
+from crud_views.lib.table import Table, UUIDLinkDetailColumn
+from crud_views.lib.views import (
+    CreateViewPermissionRequired, DeleteViewPermissionRequired, DetailViewPermissionRequired,
+    ListViewPermissionRequired, ListViewTableMixin, MessageMixin, UpdateViewPermissionRequired,
+)
+from crud_views.lib.viewset import ViewSet
+
+from .models import Author
+
+cv_author = ViewSet(model=Author, name="author", icon_header="fa-regular fa-user")  # pk type auto-detected
+
 
 class AuthorTable(Table):
-    id = UUIDLinkDetailColumn()
+    id = UUIDLinkDetailColumn()          # LinkDetailColumn for integer pks
+    first_name = tables.Column()
+    last_name = tables.Column()
+
+
+class AuthorForm(CrispyModelForm):
+    submit_label = "Save"
+
+    class Meta:
+        model = Author
+        fields = ["first_name", "last_name", "pseudonym"]
+
+    def get_layout_fields(self):
+        return Row(Column4("first_name"), Column4("last_name"), Column4("pseudonym"))
+
 
 class AuthorListView(ListViewTableMixin, ListViewPermissionRequired):
     cv_viewset = cv_author
     table_class = AuthorTable
-```
+    cv_list_actions = ["detail", "update", "delete"]
 
-```python
-# urls.py
-urlpatterns += cv_author.urlpatterns
-```
 
-Full step-by-step: see [references/quickstart.md](references/quickstart.md)
-
----
-
-## Detail views: `DetailView` vs `ObjectDetailView`
-
-*Available since 0.4.0. **Restructured in 0.17.0** — see the migration note below.*
-
-There are two detail views, and picking the wrong one is the most common mistake:
-
-| Want | Use | Lives in |
-|---|---|---|
-| Your own template, full layout control | `DetailViewPermissionRequired` | `crud_views.lib.views` |
-| Property grid from `cv_property_display` | `ObjectDetailViewPermissionRequired` | `crud_views_object_detail.lib` |
-
-Both share `cv_key = "detail"` / `cv_path = "detail"`, icons, snippets, and context actions.
-
-### `DetailView` — custom template
-
-```python
-from crud_views.lib.views import DetailViewPermissionRequired
-
-class BookDetailView(DetailViewPermissionRequired):
-    cv_viewset = cv_book
-    template_name = "myapp/book_detail.html"
-```
-
-Template receives `object`, `view`, and `cv_extends`. Extend `cv_extends` and fill `{% block cv_content %}`.
-
-When hand-building links in the custom template, use `{% cv_context_url "key" as url %}`
-to get a permission-gated target URL (`None` when the user has no access or the action is
-disabled), then gate your markup with `{% if url %}`. Use `{% cv_context_button "key" %}`
-instead when you want the library to render the full button markup. For a POST-only target
-(`ActionView`, `up` / `down`) that button submits a hidden form: also render
-`{% cv_context_action_form "key" %}` outside any `.btn-group` (since 0.29.0; it renders nothing for GET,
-hidden or disabled actions, and the object defaults to the view's object).
-
-Guardian variant: `GuardianDetailViewPermissionRequired`.
-
-### `ObjectDetailView` — property grid
-
-Ships as a **separate app** that must be installed:
-
-```python
-INSTALLED_APPS = [..., "crud_views_object_detail", "crud_views", ...]
-```
-
-```python
-from crud_views_object_detail.lib import ObjectDetailViewPermissionRequired, x
-
-class BookDetailView(ObjectDetailViewPermissionRequired):
-    cv_viewset = cv_book
-    cv_object_detail_layout = "accordion"   # optional per-view layout override
-
-    cv_property_display = [
-        {
-            "title": "Attributes",
-            "icon": "tag",
-            "description": "Core book information",
-            "properties": [
-                "title",                                   # field or @property name
-                {"path": "isbn", "title": "ISBN"},         # dict form
-                x("author__email", title="Author email"),  # x() helper == PropertyConfig
-            ],
-        },
-    ]
-```
-
-Each `properties` entry is a plain string, a dict, or `x()` / `PropertyConfig`. Dict keys:
-`path` (required), `title`, `detail` (tooltip), `type`, `template`, `link`, `badge`.
-`detail` renders inline in most layout packs; `card-rows` shows it as a tooltip, initialised by the
-bundled `tooltip.js` (via `{% cv_js %}`, needs Bootstrap's JS; since 0.23.0).
-Use `__` for FK/M2M traversal (`"author__country__name"`, `"tags"`).
-
-`link` and `badge` each accept **either** a string shorthand or the full object:
-
-```python
-{"path": "state", "badge": "success"}                     # → BadgeConfig(color="success")
-{"path": "state", "badge": BadgeConfig(color_map={...})}  # full control
-{"path": "owner", "link": "author-detail"}                # → LinkConfig(url="author-detail")
-{"path": "owner", "link": LinkConfig(url="author-detail", kwargs={"pk": "owner.pk"})}
-```
-
-Startup checks: `E240` (`cv_property_display` not set), `E241` (set but not a list).
-
-Also exported from `crud_views_object_detail.lib`: `ObjectDetailMixin`, `ObjectDetailView`,
-`PropertyConfig`, `PropertyGroupConfig`, `LinkConfig`, `BadgeConfig`, `x`.
-
-**Polymorphic and Guardian detail views do not include the property grid.** Compose
-`ObjectDetailMixin` yourself:
-
-```python
-from crud_views_object_detail.lib import ObjectDetailMixin
-from crud_views_polymorphic.lib import PolymorphicDetailViewPermissionRequired
-
-class VehicleDetailView(ObjectDetailMixin, PolymorphicDetailViewPermissionRequired):
-    cv_viewset = cv_vehicle
-    cv_property_display = [{"title": "Attributes", "properties": ["name"]}]
-```
-
-### Migration from before 0.17.0
-
-| Removed / renamed | Replacement |
-|---|---|
-| `DetailCustomView` / `DetailCustomViewPermissionRequired` | `DetailView` / `DetailViewPermissionRequired` |
-| `GuardianDetailCustomViewPermissionRequired` | `GuardianDetailViewPermissionRequired` |
-| `DetailView` + `cv_property_display` | `ObjectDetailView` (add `crud_views_object_detail` to `INSTALLED_APPS`) |
-| external `django-object-detail` package / `django_object_detail` app | vendored in-tree; import from `crud_views_object_detail.lib` |
-| `OBJECT_DETAIL_*` settings | `CRUD_VIEWS_OBJECT_DETAIL_*` |
-
----
-
-## Base template override
-
-The base template each view extends (`cv_extends` in templates) resolves:
-view `cv_extends_template` → ViewSet `extends` → global `CRUD_VIEWS_EXTENDS`.
-
-```python
-# all views in this ViewSet extend a custom base:
-cv_author = ViewSet(model=Author, name="author", extends="myapp/author_base.html")
-
-# or a single view:
-class AuthorListView(ListViewTableMixin, ListViewPermissionRequired):
+class AuthorDetailView(DetailViewPermissionRequired):
     cv_viewset = cv_author
-    cv_extends_template = "myapp/author_list_base.html"
-```
+    template_name = "myapp/author_detail.html"   # extends cv_extends, fills {% block cv_content %}
 
-**Caveat:** the override template MUST NOT contain `{% extends cv_extends %}`
-— it is itself the base being extended, so re-extending `cv_extends` makes it
-extend itself and raises `TemplateDoesNotExist`. Point it at a real base
-template instead. Misconfigured templates are caught at startup as
-`crud_views.viewset.E111`.
 
----
-
-## CardListView
-
-*Available since 0.4.0 (ordering, pagination, and filter coexistence since 0.6.0).*
-
-Render objects as cards instead of table rows. Uses `CardAction` for per-button config and `cv_card_template` for
-per-view card body overrides.
-
-```python
-from crud_views.lib.view import CardAction
-from crud_views.lib.views import CardListViewPermissionRequired, ListViewTableFilterMixin
-
-class AuthorCardListView(ListViewTableFilterMixin, CardListViewPermissionRequired):
+class AuthorCreateView(CrispyViewMixin, MessageMixin, CreateViewPermissionRequired):
     cv_viewset = cv_author
-    filterset_class = AuthorFilter
-    formhelper_class = AuthorFilterFormHelper
-    cv_card_actions = [
-        CardAction(key="detail", label="Details", variant="primary", flex=True),
-        CardAction(key="update", label="Edit"),
-        CardAction(key="delete", no_label=True, variant="tertiary"),
-    ]
-```
+    form_class = AuthorForm
+    cv_message_template_code = "Created »{{ object }}«"
 
-URLs auto-register at `/<prefix>/card/`. `cv_card_actions` declares per-button rendering: `key` maps to a view in the
-ViewSet, `label` overrides the default short label, `variant` sets the button style (`primary`/`secondary`/`tertiary`),
-`flex` makes the button fill available space, and `no_label` renders an icon-only button.
 
-A `CardAction` whose `key` targets a POST-only view (ordered up/down or any custom `ActionView`) or a modal-enabled
-view works automatically — the button renders a POST form / modal trigger derived from the target view, exactly like
-table-list actions. No extra `CardAction` config is needed (requires crud_views ≥ 0.15.0).
-
-Card views support ordering (`cv_order_fields`), Django pagination (`paginate_by`), and
-django-filter filtering — all coexisting and session-persistable. See `references/api-reference.md`
-for attributes.
-
-### Card ordering: signed choices vs direction buttons
-
-`cv_order_fields` has two shapes. Plain names render a combo plus asc/desc buttons
-(`?order=name&dir=desc`). Prefix an entry with `-` / `+` and the direction becomes part of the
-choice: one combo, no buttons, submits on change, `?order=-created` (available since 0.22.0):
-
-```python
-class RecipeCardListView(CardListViewPermissionRequired):
-    cv_viewset = cv_recipe
-    cv_order_fields = [
-        ("-created_dt", "Newest first"),
-        ("created_dt", "Oldest first"),   # plain name in a signed list == ascending
-        "-title",                         # auto-label: "Title (descending)" (translated)
-    ]
-    cv_order_default = "-created_dt"
-```
-
-Rules: one signed entry switches the whole list to signed mode; ascending is emitted as the bare
-name (never `+name` — a `+` in a query string decodes to a space); `dir` is ignored; the whitelist
-is exact per signed value (`?order=created_dt` is rejected when only `-created_dt` is declared);
-the combo preselects the active choice including the default.
-
-### Card Container Class
-
-Override `cv_card_container_class` to control the Bootstrap grid width of each card wrapper. Default is `"col-md-6"` (two cards per row). Set to `"col-md-12"` for full-width or `"col-md-4"` for three per row.
-
-### List Key Fallback
-
-ViewSets with only a `CardListView` (no `ListView`) automatically resolve `"list"` keys to `"card"`. No need to
-override `cv_success_key` or `cv_cancel_key` on sibling views.
-
-### Cancel button and success target
-
-*Cancel since 0.21.0, success since 0.26.0.*
-
-The cancel button returns to `cv_cancel_key` (`"list"`), a successful submit to `cv_success_key`
-(`"list"`). Set `cv_cancel_keys` / `cv_success_keys` to return to the sibling view the user came
-from instead:
-
-```python
 class AuthorUpdateView(CrispyViewMixin, MessageMixin, UpdateViewPermissionRequired):
     cv_viewset = cv_author
     form_class = AuthorForm
-    cv_cancel_keys = ["list", "detail"]   # dynamic; cv_cancel_key stays the fallback
-    cv_success_keys = ["list", "detail"]  # dynamic; cv_success_key stays the fallback
-```
+    cv_message_template_code = "Updated »{{ object }}«"
 
-Links into such a view carry the origin as a view key in the query string
-(`/author/<pk>/update/?cv_from=detail`) when the target lists it in either list; the parameter
-name is `CRUD_VIEWS_ORIGIN_PARAM` (default `cv_from`; was `CRUD_VIEWS_CANCEL_ORIGIN_PARAM` before
-0.26.0). The two lists resolve independently. Values that are malformed, not listed, unregistered,
-or that need an object the view lacks (e.g. cancel to `detail` on a create view, success to
-`detail` after a delete) fall back to `cv_cancel_key` / `cv_success_key`.
-The origin survives validation errors (forms post to `request.get_full_path`) and modal
-re-renders; modal success uses it for `X-CV-Redirect`. Works on Create/Update/Delete/CustomForm
-views; `cv_success_keys` also on Workflow, Action and ordered up/down views. In custom templates
-resolve the cancel target with `{% cv_context_url view.cv_get_cancel_key as url %}`, not
-`view.cv_cancel_key`; the success key resolves via `cv_get_success_key()`.
-Checks: `crud_views.E103` (bad parameter name), `viewset.E252` / `viewset.E253` (unregistered
-key in `cv_cancel_keys` / `cv_success_keys`), `viewset.E254` (object view such as `detail` in a
-delete view's `cv_success_key` or `cv_success_keys` — the object is gone after success).
 
-Theme overrides of `view_{create,update,delete,custom_form}.content.html` must use
-`action="{{ request.get_full_path }}"` — a form posting to `request.path` drops the origin, so
-cancel falls back to `cv_cancel_key` after a validation error. Custom link builders (table
-columns, theme tags) call `cv_get_link_url` with the target view class so the link carries the
-origin; plain `cv_get_url` never does:
-
-```python
-url = view.cv_get_link_url(view.cv_get_cls("update"), "update", obj=record)
-```
-
-### Custom Card Template
-
-Override `cv_card_template` for model-specific card content:
-
-```python
-class ProjektCardListView(CardListViewPermissionRequired):
-    cv_viewset = cv_projekt
-    cv_card_template = "myapp/tags/projekt_card.html"
-    cv_card_actions = [...]
-```
-
-The template receives `object`, `view`, and `request`. Use `{% cv_card_action action object %}` for buttons:
-
-```html
-{% load crud_views %}
-<div class="card mb-3">
-    <div class="card-body">
-        <h5 class="card-title">{{ object.name }}</h5>
-        <p>{{ object.description|truncatewords:20 }}</p>
-        <div class="d-flex gap-2">
-            {% for action in view.cv_card_actions %}
-                {% cv_card_action action object %}
-            {% endfor %}
-        </div>
-    </div>
-</div>
-```
-
-Guardian variant: `GuardianCardListViewPermissionRequired` filters the queryset by per-object view permissions.
-
----
-
-## DeleteView: Cascading Deletes & Delete Protection
-
-### Cascading Deletes Display
-
-Show users what related objects will be cascade-deleted (like Django Admin). Opt-in via `cv_show_related_objects`:
-
-```python
-class PublisherDeleteView(CrispyViewMixin, MessageMixin, DeleteViewPermissionRequired):
-    form_class = CrispyDeleteForm
-    cv_viewset = cv_publisher
-    cv_show_related_objects = True       # show cascade-deleted objects
-    cv_link_related_objects = True       # link related objects to their detail views
-```
-
-When enabled, the delete confirmation page shows a summary by type/count, a nested tree of related objects, and warnings for `PROTECT` relationships. Links are only rendered for models with a registered ViewSet that has a `detail` view.
-
-### Delete Protection
-
-**View hook** — override `cv_check_delete_protection()` to return error messages. Runs on GET — the delete form is **not shown at all** when errors exist:
-
-```python
-class PublisherDeleteView(CrispyViewMixin, MessageMixin, DeleteViewPermissionRequired):
-    form_class = CrispyDeleteForm
-    cv_viewset = cv_publisher
-
-    def cv_check_delete_protection(self) -> list[str]:
-        if self.object.books.filter(is_published=True).exists():
-            return ["Cannot delete a publisher with published books."]
-        return []
-```
-
-**Form hook** — for submit-time validation, use standard Django form validation in a `CrispyDeleteForm` subclass:
-
-```python
-class ProtectedDeleteForm(CrispyDeleteForm):
-    def clean(self):
-        cleaned_data = super().clean()
-        if some_condition:
-            raise ValidationError("Cannot delete.")
-        return cleaned_data
-```
-
-Execution order: GET checks `cv_check_delete_protection()` (hides form if errors) → POST validates form → POST re-checks `cv_check_delete_protection()` (defense in depth) → delete or re-render.
-
----
-
-## Modal Views
-
-*Available since 0.11.0.*
-
-Opt a view into Bootstrap 5 modal rendering: its action buttons then open the view in a modal dialog
-(fetched in place, submitted without a full page reload) instead of navigating to a full page.
-
-```python
 class AuthorDeleteView(CrispyViewMixin, MessageMixin, DeleteViewPermissionRequired):
-    form_class = CrispyDeleteForm
     cv_viewset = cv_author
-    cv_modal = True                 # opt in
-    cv_modal_size = "modal-lg"      # optional: "" | "modal-sm" | "modal-lg" | "modal-xl"
+    form_class = CrispyDeleteForm
+    cv_message_template_code = "Deleted »{{ object }}«"
 ```
 
-**Supported view types:** `DeleteView`, `DetailView`, `CustomFormView`, `CustomFormNoObjectView` (and
-their `*PermissionRequired` and Guardian/extension variants). Setting `cv_modal = True` on any other view
-type (create, update, list, …) raises system check `viewset.E251`. An invalid `cv_modal_size` — anything
-other than the exact strings `""`, `"modal-sm"`, `"modal-lg"`, `"modal-xl"` — raises `viewset.E250`.
+```python
+# urls.py — every ViewSet, including child ViewSets, adds its own patterns
+urlpatterns += cv_author.urlpatterns
+```
 
-**No template, JS, URL, or settings changes needed.** The shared modal shell is rendered by
-`{% cv_config %}` and the transport JS by `{% cv_js %}` — both already present in the Bootstrap 5 base
-template. It is the same URL: the view detects the modal request via an `X-CV-Modal: true` request header
-and returns just the modal partial (reusing the view's normal content). On POST, success answers `204` +
-an `X-CV-Redirect` header (the browser navigates — Django messages and `cv_success_key` work unchanged);
-invalid forms and delete protection re-render inside the open modal (status `422`).
-
-**Progressive enhancement:** direct links, middle-click, disabled JavaScript, and non-Bootstrap themes
-(`crud_views_plain`) all render the normal full page. `cv_modal = False` (the default) changes nothing.
-
-**Re-init hook:** after each content injection a `cv:modal:loaded` CustomEvent fires on `#cv-modal` — use
-it to initialize custom widgets inside modal content.
-
-Full reference: see [references/api-reference.md](references/api-reference.md).
+For a property grid instead of a hand-written detail template, see [detail-views.md](references/detail-views.md).
 
 ---
 
-## Nested Resources (Child ViewSet)
-
-Add `parent=ParentViewSet(name="author")` to the child ViewSet. Use `CreateViewParentMixin` on the child's create
-view to auto-assign the FK. Add `LinkChildColumn` to the parent table to link through.
+## Nested resources (child ViewSets)
 
 ```python
-# views/book.py
-from crud_views.lib.viewset import ViewSet, ParentViewSet
-from crud_views.lib.table import Table, UUIDLinkDetailColumn, LinkChildColumn
-from crud_views.lib.views import CreateViewParentMixin, CreateViewPermissionRequired
+from crud_views.lib.table import LinkChildColumn
+from crud_views.lib.views import CreateViewParentMixin
+from crud_views.lib.viewset import ParentViewSet
 
-cv_book = ViewSet(
-    model=Book,
-    name="book",
-    parent=ParentViewSet(name="author"),  # URL: /author/<author_pk>/book/
-)
+cv_book = ViewSet(model=Book, name="book", parent=ParentViewSet(name="author"))  # /author/<author_pk>/book/
+
 
 class BookCreateView(CrispyViewMixin, MessageMixin, CreateViewParentMixin, CreateViewPermissionRequired):
-    form_class = BookCreateForm
-    cv_viewset = cv_book
+    cv_viewset = cv_book          # CreateViewParentMixin assigns the FK to the parent from the URL
+    form_class = BookForm         # don't include the parent FK field in the form
 
-# In the parent AuthorTable, add:
-# books = LinkChildColumn(name="book", verbose_name="Books")
+
+class AuthorTable(Table):
+    books = LinkChildColumn(name="book", verbose_name="Books")   # link from parent row to child list
 ```
 
-URLs for `cv_book` must also be added: `urlpatterns += cv_book.urlpatterns`
-
-### Child Context Button
-
-Use `ChildContextButton` to add a context action on a parent's detail view that links to a child viewset (e.g. a
-"Books" button on the author detail page). This is the inverse of `ParentContextButton` (which navigates up).
-
-```python
-from crud_views.lib.view import ChildContextButton
-from crud_views.lib.viewset import ViewSet, context_buttons_default
-
-cv_author = ViewSet(
-    model=Author,
-    name="author",
-    context_buttons=context_buttons_default() + [
-        ChildContextButton(key="books", child_name="book", label_template_code="Books"),
-    ],
-)
-
-# Then reference the key in cv_context_actions on the detail view:
-class AuthorDetailView(DetailViewPermissionRequired):
-    cv_viewset = cv_author
-    cv_context_actions = ["update", "delete", "books"]
-```
-
-`ChildContextButton` parameters:
-- `key` — the action key referenced in `cv_context_actions`
-- `child_name` — name of the child viewset to link to
-- `child_key` — target view in the child viewset (default: `"list"`)
-- `label_template_code` — Django template string for the button label (optional)
-- `label_template` — path to a Django template for the button label (optional)
-
-Access control is handled automatically via the child view's `cv_has_access()`. For Guardian-based views, this
-checks object-level permissions on the parent object.
-
-### SiblingContextButton
-
-*Available since 0.7.0.*
-
-Use `SiblingContextButton` on a **child** view to link sideways to a **sibling** collection —
-another child of the same parent. It reuses the parent PK from the current URL. Pair it with
-`ChildContextButton`: `ChildContextButton` on the parent (go down), `SiblingContextButton` on the
-children (go sideways).
-
-```python
-from crud_views.lib.view import SiblingContextButton
-from crud_views.lib.viewset import ViewSet, ParentViewSet, context_buttons_default
-
-cv_book = ViewSet(
-    model=Book,
-    name="book",
-    parent=ParentViewSet(name="author"),
-    context_buttons=context_buttons_default() + [
-        SiblingContextButton(key="articles", sibling_name="article", label_template_code="Articles"),
-    ],
-)
-
-# Then reference the key in cv_context_actions on the child's view:
-class BookListView(ListViewPermissionRequired):
-    cv_viewset = cv_book
-    cv_context_actions = ["parent", "create", "articles"]
-```
-
-`SiblingContextButton` parameters:
-- `key` — the action key referenced in `cv_context_actions`
-- `sibling_name` — registry name of the sibling viewset (must share the same parent)
-- `sibling_key` — target view key in the sibling viewset (default `"list"`)
-
-Renders nothing on a view without a parent. Access is checked model-level on the sibling
-view (no parent object is consulted).
-
-### View-level context buttons (cv_context_buttons)
-
-*Available since 0.7.0.*
-
-Context buttons are normally defined on the ViewSet and shared by all its views. To define a
-button on a single view, set `cv_context_buttons` on the `CrudView`:
-
-```python
-from crud_views.lib.view import ChildContextButton
-
-
-class BookDetailView(DetailViewPermissionRequired):
-    cv_viewset = cv_book
-    cv_context_actions = ["update", "delete", "reviews"]   # list the key to render it
-    cv_context_buttons = [
-        ChildContextButton(key="reviews", child_name="review", label_template_code="Reviews"),
-    ]
-```
-
-- A button renders only when its `key` is in `cv_context_actions` (definition vs. rendering
-  stay separate).
-- A view-level button overrides a ViewSet-level button with the same `key`, for that view only.
-
-**Target check `viewset.E255` (since 0.27.1):** every configured button (ViewSet `context_buttons`
-and `cv_context_buttons`) must resolve at startup — `key_target` on the own ViewSet
-(`ContextButton`) or the parent (`ParentContextButton`, which also needs a parent), `child_name`
-being a child plus `child_key`, `sibling_name` plus `sibling_key`; `list` may fall back to `card`.
-Buttons equal to a `context_buttons_default()` entry and subclasses overriding `get_context()` are
-skipped; a custom button type can override `cv_check_target(viewset)` (returns a message or `None`).
+`ParentViewSet(attribute=...)` names the FK field when it differs from the parent's name. Child list pages get a
+`"parent"` context action automatically. Buttons from a parent detail page down to the children
+(`ChildContextButton`) and between siblings: [actions-and-buttons.md](references/actions-and-buttons.md). With
+django-guardian, child create views need `GuardianCreateViewPermissionRequired`: [guardian.md](references/guardian.md).
 
 ---
 
-## Filtering
+## Hooks and side effects
 
-```python
-import django_filters
-from crud_views.lib.views import ListViewTableFilterMixin
-from crud_views.lib.views.list import ListViewFilterFormHelper
-from crispy_forms.layout import Layout, Row
-
-class AuthorFilter(django_filters.FilterSet):
-    first_name = django_filters.CharFilter(lookup_expr="icontains")
-    last_name = django_filters.CharFilter(lookup_expr="icontains")
-    class Meta:
-        model = Author
-        fields = ["first_name", "last_name"]
-
-class AuthorFilterFormHelper(ListViewFilterFormHelper):
-    layout = Layout(Row(Column4("first_name"), Column4("last_name")))
-
-class AuthorListView(ListViewTableMixin, ListViewTableFilterMixin, ListViewPermissionRequired):
-    table_class = AuthorTable
-    filterset_class = AuthorFilter
-    formhelper_class = AuthorFilterFormHelper
-    cv_viewset = cv_author
-```
-
-To show a filter always-open with no toggle button, set `cv_filter_pinned = True` (or the `CRUD_VIEWS_FILTER_PINNED` setting).
+- Form views: override `cv_form_valid(self, context)` (saves the instance; `context["form"]`, `context["object"]`)
+  or `cv_form_valid_hook(self, context)` (after save).
+- Action views: implement `action(self, context) -> bool` (truthy → success message, falsy → error message).
+- The write phase runs inside `transaction.atomic()`. **Put side effects — mail, Celery tasks, webhooks — in
+  `cv_on_commit(self, context)`**, which runs after the commit and never after a rollback; in `cv_form_valid_hook`,
+  `action()` or a workflow's `on_transition` they would run before the commit. Details:
+  [form-views.md](references/form-views.md#transactions--hooks-since-0270).
 
 ---
 
-## Ordered Actions (move up/down)
+## Common mistakes
 
-```python
-from crud_views.lib.views import OrderedUpViewPermissionRequired, OrderedUpDownPermissionRequired
-
-class AuthorUpView(OrderedUpViewPermissionRequired):
-    cv_viewset = cv_author
-
-class AuthorDownView(OrderedUpDownPermissionRequired):
-    cv_viewset = cv_author
-
-# Add "up" and "down" to cv_list_actions in the list view
-# Move messages are emitted automatically — no MessageMixin needed.
-# Override cv_message_template_code to customize, or set cv_action_messages = False to disable.
-```
-
----
-
-## Custom Form View
-
-`CustomFormView` attaches a custom form to an existing object — use for contact forms, approval actions, etc.
-
-```python
-from crud_views.lib.views import MessageMixin
-from crud_views.lib.views.form import CustomFormViewPermissionRequired
-from crud_views.lib.crispy import CrispyModelForm, CrispyViewMixin, Column12
-
-class AuthorContactForm(CrispyModelForm):
-    submit_label = "Send"
-    subject = CharField(label="Subject", required=True)
-    body = CharField(label="Body", required=True)
-    class Meta:
-        model = Author
-        fields = ["subject", "body"]
-    def get_layout_fields(self):
-        return Column12("subject"), Column12("body")
-
-class AuthorContactView(MessageMixin, CrispyViewMixin, CustomFormViewPermissionRequired):
-    cv_key = "contact"      # unique key — auto-registers URL with the ViewSet
-    cv_path = "contact"     # URL path segment
-    cv_icon_action = "fa-solid fa-envelope"
-    cv_viewset = cv_author
-    form_class = AuthorContactForm
-    cv_message_template_code = "Successfully contacted author »{{ object }}«"
-    cv_context_actions = ["parent", "detail", "update", "delete", "contact"]
-    cv_header_template_code = "Contact Author"
-    cv_paragraph_template_code = "Send a message to the Author"
-
-    def cv_form_valid(self, context):
-        form = context["form"]
-        # process form.cleaned_data here
-        pass
-```
-
-Use `CustomFormNoObjectViewPermissionRequired` for forms not tied to a specific instance.
-
----
-
-## Custom Action View
-
-Performs a one-click action on an existing object. Implement `action(context)`. Register with a unique `cv_key`
-and `cv_path`. Add that key to `cv_list_actions` on the list view to show a per-row button.
-
-```python
-from crud_views.lib.views import ActionViewPermissionRequired
-
-class AuthorArchiveView(ActionViewPermissionRequired):
-    cv_key = "archive"
-    cv_path = "archive"
-    cv_icon_action = "fa-solid fa-box-archive"
-    cv_viewset = cv_author
-    cv_message_template_code = "Archived »{{ object }}«"
-    cv_message_template_error_code = "Could not archive »{{ object }}«"
-
-    def action(self, context):
-        obj = context["object"]
-        obj.is_archived = True
-        obj.save()
-        return True  # truthy → success message; falsy → error message
-
-# In list view: cv_list_actions = ["detail", "update", "delete", "archive"]
-# MessageMixin is NOT needed — ActionView emits messages built in.
-# Disable with cv_action_messages = False or by leaving the templates unset.
-```
-
----
-
-## Conditionally Disabling an Action
-
-*Available since 0.6.0.*
-
-`cv_has_access` answers "may this user perform this action at all?" (permission check). `cv_action_enabled` is a
-secondary state gate that runs only after `cv_has_access` has passed — it answers "is this action currently
-applicable to this specific object?" When it returns `False`, the action button is **hidden** (or, since 0.28.0, rendered disabled — see
-[Hide or disable inaccessible actions](#hide-or-disable-inaccessible-actions-since-0280)) and a direct
-request to the URL returns 403 for an authenticated user. Override it as a classmethod; `obj` is the target
-instance for object views (delete/update/detail/action) or the **parent** instance for a child-create view.
-
-```python
-class PersonDeleteView(CrispyViewMixin, MessageMixin, DeleteViewPermissionRequired):
-    form_class = CrispyDeleteForm
-    cv_viewset = cv_person
-
-    @classmethod
-    def cv_action_enabled(cls, user, obj=None):
-        # obj is the Person row; members of a locked group cannot be removed.
-        return not (obj and obj.group.filter(locked=True).exists())
-```
-
-Full API and enforcement details: [references/api-reference.md](references/api-reference.md).
-
----
-
-## Hide or disable inaccessible actions (since 0.28.0)
-
-An action is **inaccessible** when the user fails `cv_has_access` for its target view, or the target's
-`cv_action_enabled` returns `False`. By default such actions are **hidden**; mode `"disable"` renders them greyed
-out instead, so users see that the action exists.
-
-| Where | Attribute | Values |
+| Mistake | Fix | More |
 |---|---|---|
-| Django settings | `CRUD_VIEWS_INACCESSIBLE_ACTIONS` | `"hide"` (default), `"disable"` |
-| `ViewSet` | `inaccessible_actions` | `None` (use the setting), `"hide"`, `"disable"` |
-| `CrudView` | `cv_inaccessible_actions` | `None` (use the ViewSet), `"hide"`, `"disable"` |
-
-The mode resolves on the action's **target** view (the view the button links to), not on the page showing it —
-`cv_get_inaccessible_actions()` returns the result:
-
-```python
-class PublisherDeleteView(DeleteViewPermissionRequired):
-    cv_viewset = cv_publisher
-    cv_inaccessible_actions = "disable"  # greyed out on list rows, cards and the detail toolbar
-```
-
-- Applies everywhere an action renders: the context toolbar, list rows, cards (child card actions too), action
-  menus, and the manual tags. `cv_get_context_buttons()` includes disabled entries (`cv_disabled=True`,
-  `cv_url=None`); `{% cv_context_url %}` returns `None` for every inaccessible action in **both** modes.
-- A disabled action is a native `<button type="button" disabled data-cv-disabled="permission|state">` — no URL,
-  no `data-cv-action` / `data-cv-modal`, and no hidden POST form. Templates get `cv_disabled` and
-  `cv_disabled_reason` (`"permission"` | `"state"`).
-- Child card actions (`CardAction(child_name=...)`) check the **child** view's permission, like
-  `ChildContextButton` (before 0.28.0 they always rendered and the target answered 403).
-- Checks: `crud_views.E104` (invalid setting), `viewset.E207` (invalid `cv_inaccessible_actions`); the ViewSet
-  field is validated by pydantic.
-
----
-
-## Action menus (since 0.28.0)
-
-Fold the less common actions of a list row, the context toolbar or a card into one Bootstrap dropdown (`⋯`).
-Each location has an **inline keys** list: named actions stay buttons, all others go into the menu.
-
-| Level | List rows | Context toolbar | Cards |
-|---|---|---|---|
-| Django settings | `CRUD_VIEWS_LIST_ACTIONS_INLINE` | `CRUD_VIEWS_CONTEXT_ACTIONS_INLINE` | `CRUD_VIEWS_CARD_ACTIONS_INLINE` |
-| `ViewSet` | `list_actions_inline` | `context_actions_inline` | `card_actions_inline` |
-| `CrudView` | `cv_list_actions_inline` | `cv_context_actions_inline` | `cv_card_actions_inline` (card views) |
-
-- `None` (default): no menu — the markup is exactly the pre-0.28 markup
-- `[]`: every action goes into the menu
-- `["detail"]`: `detail` stays a button, the rest go into the menu
-
-```python
-class AuthorListView(ListViewTableMixin, ListViewPermissionRequired):
-    cv_viewset = cv_author
-    cv_list_actions = ["detail", "update", "delete", "up", "down"]
-    cv_list_actions_inline = ["detail", "up", "down"]  # update and delete go into the menu
-
-
-class AuthorDetailView(DetailViewPermissionRequired):
-    cv_viewset = cv_author
-    cv_context_actions_inline = ["update"]  # the active "detail" shows inside the menu, marked aria-current
-
-
-class AuthorCardListView(CardListViewPermissionRequired):
-    cv_viewset = cv_author
-    cv_card_actions = [
-        CardAction(key="detail", label="Details", variant="primary", flex=True),
-        CardAction(key="update", label="Edit"),
-        CardAction(child_name="book", label="Books"),
-    ]
-    cv_card_actions_inline = ["detail"]  # cards match CardAction.key, or child_name for child actions
-```
-
-- **Resolution:** `CrudView` → `ViewSet` → setting, first value that **is not `None`** (so `[]` on a view beats a
-  list on the ViewSet). It resolves on the view that **renders** the group — unlike hide/disable, which resolves on
-  the target. Getters: `cv_get_list_actions_inline()`, `cv_get_context_actions_inline()`,
-  `cv_get_card_actions_inline()`.
-- **Matching:** list rows and the toolbar match the key as written in `cv_list_actions` / `cv_context_actions`
-  (`"home"`, not its target `"list"`). Order is kept on both sides; new actions land in the menu automatically.
-- **Never folded:** context buttons with their own `template=` / `template_code=` (incl. the filter toggle).
-  `up` / `down` can be folded but belong inline.
-- **Hide/disable:** hidden actions appear nowhere; a menu with only hidden actions renders no toggle. Disabled items
-  are `<button class="dropdown-item" disabled data-cv-disabled="…">`; a menu with only disabled items still renders.
-- **POST and modal** items work from the menu (hidden forms stay outside it), in list rows, cards and — since
-  0.29.0 — the context toolbar too, inline and in its menu (also for a `ContextButton` whose `key_target` is POST).
-  Up to 0.28.0 the toolbar rendered POST actions as GET links (405).
-- **Labels:** menu items show the target's icon (`fa-fw`) and short label (`cv_action_short_label`;
-  `CardAction.label` on cards). A context button's own `label_template[_code]` also sets its short label, so it
-  labels the menu item too. `CardAction.variant` / `flex` / `no_label` apply to inline card buttons only.
-- **Toggle icon:** `CRUD_VIEWS_ACTIONS_MENU_ICON` (default `"fa-solid fa-ellipsis"`). Row menus use Popper's fixed
-  strategy, so `.table-responsive` does not clip them. Needs the Bootstrap JS **bundle** (Popper included).
-- **Templates** (overridable): `crud_views/tags/actions_menu.html` (wrapper + list), `actions_menu_toggle.html`
-  (toggle only — override it for a split-style caret), `actions_menu_item.html`, `actions_menu_item_label.html`.
-  Projects that override `columns/actions.html`, `tags/context_actions.html` or `tags/card.html` don't get the menu
-  until they adopt the package's `{% if group is None %} … {% else %} … {% endif %}` structure.
-- **Custom loops:** `view.cv_get_list_action_group(obj)`, `cv_get_context_action_group(obj)`,
-  `cv_get_card_action_group(obj)` return an `ActionGroup` (`inline`, `menu`, `all`) or `None` when off.
-- **Checks:** `crud_views.E105` (setting not `None`/list of strings), `viewset.E208` (same for the view attribute),
-  `viewset.W290` (a view's **own** inline key isn't among that location's actions — typo; ViewSet and setting
-  values are shared defaults and never checked).
-
----
-
-## Resources — Non-ORM Data in ViewSets (no database model)
-
-Use a `Resource` when the data a ViewSet lists isn't backed by the database — S3 bucket listings, an
-external REST API, a config tree. The ViewSet still gets list/detail pages, breadcrumbs, sibling-aware
-action buttons, and permission checks. A `Resource` is a **Pydantic** class (not a Django model) passed as
-`model=` to the ViewSet. **Create and update are deliberately out of scope** — if the data needs writable
-forms it has a home; model it as a real (possibly `managed=False`) model and use normal CRUD.
-
-Available since 0.12.0. Full reference: see [references/resources.md](references/resources.md).
-
-```python
-import hashlib
-import django_tables2 as tables
-from crud_views.lib.resource import Resource, ResourceViewMixin
-from crud_views.lib.table import Table
-from crud_views.lib.viewset import ViewSet
-from crud_views.lib.views import ListViewTableMixin, ListViewPermissionRequired
-
-class S3File(Resource):                       # a Pydantic model, NOT a Django model
-    key: str
-    size: int
-
-    class Meta:                               # Django-Meta idiom; all fields optional
-        verbose_name = "s3 file"
-        verbose_name_plural = "s3 files"
-        pk_field = "key_md5"                  # names a field OR a @property
-        pk_type = ViewSet.PK.HEX             # URL regex; keys with "/" need a URL-safe computed pk
-
-    @property
-    def key_md5(self) -> str:                 # S3 keys contain "/", so expose a URL-safe pk
-        return hashlib.md5(self.key.encode()).hexdigest()
-
-    def __str__(self) -> str:
-        return self.key
-
-    @classmethod
-    def cv_get_items(cls, request, **url_kwargs):   # THE required hook — return a plain list (not a generator)
-        return [cls.model_validate(row) for row in list_bucket()]
-    # default cv_get_item(cls, request, pk, **url_kwargs) linear-scans cv_get_items(); override for direct lookup
-
-cv_s3file = ViewSet(
-    model=S3File,                             # Resource class goes here
-    name="s3file",
-    resource_permissions={                    # explicit — there is no ContentType to derive perms from
-        "view": "storage.view_s3file",
-        "delete": "storage.delete_s3file",
-    },
-)
-```
-
-**Views:** put `ResourceViewMixin` **first** in the bases — it overrides `get_queryset`/`get_object` so every
-existing view class resolves rows via `cv_get_items`/`cv_get_item` instead of the ORM.
-
-```python
-class S3FileListView(ResourceViewMixin, ListViewTableMixin, ListViewPermissionRequired):
-    cv_viewset = cv_s3file
-    table_class = S3FileTable
-    cv_list_actions = ["detail", "delete", "touch"]
-```
-
-Toolbox → which view class (all prefixed with `ResourceViewMixin`):
-- **List** → `ListViewTableMixin` + `ListView*` (pagination/tables2 work on plain lists unchanged)
-- **Detail** → `DetailView*` with your own `template_name` (not property-grid `ObjectDetailView` — no model fields to introspect)
-- **Delete-with-confirm** → `CustomFormView*` + `CrispyDeleteForm`; do the real delete in `cv_form_valid(self, context)`. There is no `DeleteView` port.
-- **Form-less action** → `ActionView*`; do the side effect in `action(self, context) -> bool`
-
-**Permissions are explicit.** Resource ViewSets never derive permissions from a model. Pass a
-`resource_permissions` mapping (short key → `"app_label.codename"`), or `None` if every view is a non-`PermissionRequired`
-variant. The documented pattern for minting the codenames is an unmanaged permission-holder model
-(`managed=False`, `default_permissions=()`, explicit `permissions=[...]`). A `*PermissionRequired` view whose
-`cv_permission` key is missing from the mapping fails startup check **E260** — Resources never fail silently into "unprotected."
-
-**Nesting:** a Resource ViewSet can be the *child* of model ViewSets (any depth) — parent pks arrive in
-`cv_get_items`'s `url_kwargs`, and scoping the listing is your job (no ORM filter). A Resource can **not** be a
-*parent* (leaf-only; startup check **E261**). No guardian/workflow/polymorphic/filter/ordered integration — all ORM-bound.
-
----
-
-## Breadcrumbs
-
-`CrudViewBreadcrumbMixin` (import from `crud_views.lib.breadcrumb`) adds a Bootstrap 5.3
-breadcrumb to any CrudView. The trail follows the ViewSet hierarchy —
-`[prefix] › (ancestors …) › container › object › action` — and walks nested ViewSets:
-an Employee update page under Company › Department shows
-`Companies › ACME › Departments › Sales › Employees › Jane Doe › Edit`.
-
-```python
-from crud_views.lib.breadcrumb import BreadcrumbItem, CrudViewBreadcrumbMixin
-
-# adopt once in a project-wide mixin, then put it FIRST in every view's MRO
-class BreadcrumbMixin(CrudViewBreadcrumbMixin):
-    pass
-
-class EmployeeDetailView(BreadcrumbMixin, DetailViewPermissionRequired):
-    cv_viewset = cv_employee
-```
-
-Render it in the `CRUD_VIEWS_EXTENDS` base template — safe to place unconditionally,
-the tag renders nothing for views without the mixin:
-
-```html
-{% load crud_views %}
-{% cv_breadcrumb %}
-```
-
-Hook into the host site's navigation with the `CRUD_VIEWS_BREADCRUMB_PREFIX` setting
-(static, global) and/or a `cv_breadcrumb_prefix()` override (dynamic, per request):
-
-```python
-CRUD_VIEWS_BREADCRUMB_PREFIX = [{"title": "Home", "url_name": "home"}]  # settings.py
-
-class HostNavBreadcrumbMixin(CrudViewBreadcrumbMixin):
-    def cv_breadcrumb_prefix(self):
-        return super().cv_breadcrumb_prefix() + [BreadcrumbItem(title="Admin area", url_name="admin-dashboard")]
-```
-
-Key attributes / behavior:
-
-- `cv_breadcrumb_key_object = "detail"` — view key object items link to; a typo'd
-  override triggers check `viewset.W270`. Viewsets without a detail view render object
-  items unlinked; card-only viewsets use the card view as container.
-- `cv_breadcrumb_container_label` — overrides the container (list/card) label; set it on
-  the container view class (applies also when the viewset appears as an ancestor).
-- `cv_breadcrumb_object_label(obj)` — defaults to `str(obj)`; override for expensive `__str__`.
-- The last item is always rendered `active` + `aria-current="page"` and never a link.
-- One scoped DB query per ancestor level (memoized per request); a tampered parent pk in
-  the URL yields 404, so cross-tenant labels never leak.
-- Malformed `CRUD_VIEWS_BREADCRUMB_PREFIX` entries fail system check `crud_views.E102`.
-
----
-
-## Settings (Django `settings.py`)
-
-Each setting is a flat, module-level Django setting prefixed with `CRUD_VIEWS_` (read via
-`getattr(settings, "CRUD_VIEWS_<NAME>", default)`). There is no `CRUD_VIEWS = {...}` dict.
-Only `CRUD_VIEWS_EXTENDS` is required; the rest show their defaults:
-
-```python
-CRUD_VIEWS_EXTENDS = "base.html"                       # required: base template
-CRUD_VIEWS_MANAGE_VIEWS_ENABLED = "debug_only"         # "yes" | "no" | "debug_only"
-CRUD_VIEWS_MANAGE_GROUP = "CRUD_VIEWS_MANAGE"           # group name granting manage access
-CRUD_VIEWS_MANAGE_SHOW_USERS = False                   # show Users column in Permission Holders
-CRUD_VIEWS_SESSION_DATA_KEY = "viewset"
-CRUD_VIEWS_FILTER_PERSISTENCE = True                   # store filter state in session
-CRUD_VIEWS_FILTER_PINNED = False                       # True = filter always open, toggle hidden
-CRUD_VIEWS_FILTER_ICON = "fa-solid fa-filter"
-CRUD_VIEWS_FILTER_RESET_BUTTON_CSS_CLASS = "btn btn-secondary"
-CRUD_VIEWS_INACCESSIBLE_ACTIONS = "hide"               # "hide" | "disable" (since 0.28.0)
-CRUD_VIEWS_LIST_ACTIONS_INLINE = None                 # action menus (since 0.28.0): keys kept as buttons
-CRUD_VIEWS_CONTEXT_ACTIONS_INLINE = None              #   None = no menu, [] = everything in the menu
-CRUD_VIEWS_CARD_ACTIONS_INLINE = None
-CRUD_VIEWS_ACTIONS_MENU_ICON = "fa-solid fa-ellipsis"
-CRUD_VIEWS_LIST_ACTIONS = ["detail", "update", "delete"]
-CRUD_VIEWS_LIST_CONTEXT_ACTIONS = ["parent", "list", "filter", "create"]
-CRUD_VIEWS_DETAIL_CONTEXT_ACTIONS = ["home", "detail", "update", "delete"]
-CRUD_VIEWS_CREATE_CONTEXT_ACTIONS = ["home", "create"]
-CRUD_VIEWS_UPDATE_CONTEXT_ACTIONS = ["home", "detail", "update", "delete"]
-CRUD_VIEWS_DELETE_CONTEXT_ACTIONS = ["home", "detail", "update", "delete"]
-CRUD_VIEWS_BREADCRUMB_PREFIX = []                      # leading breadcrumb items, e.g. [{"title": "Home", "url_name": "home"}]
-CRUD_VIEWS_CSP_NONCE_ATTR = "csp_nonce"                # request attribute holding the CSP nonce
-```
-
-Property-grid settings live in the separate `crud_views_object_detail` app and are prefixed
-`CRUD_VIEWS_OBJECT_DETAIL_` (renamed from bare `OBJECT_DETAIL_` in 0.17.0):
-
-```python
-CRUD_VIEWS_OBJECT_DETAIL_TEMPLATE_PACK_LAYOUT = "split-card"  # "accordion", "tabs-vertical",
-                                                              # "card-rows", "striped-rows",
-                                                              # "table-inline", "list-group-3col"
-CRUD_VIEWS_OBJECT_DETAIL_TEMPLATE_PACK_TYPES = "default"
-CRUD_VIEWS_OBJECT_DETAIL_ICONS_LIBRARY = "bootstrap"          # default; or "fontawesome"
-# The three below default per library — bootstrap: class "bi", no type, prefix "bi";
-# fontawesome: class "fa", type "regular", prefix "fa". Set only to override.
-# CRUD_VIEWS_OBJECT_DETAIL_ICONS_CLASS = "fa"
-# CRUD_VIEWS_OBJECT_DETAIL_ICONS_TYPE = "solid"               # suffix: fa-solid, fa-regular, ...
-# CRUD_VIEWS_OBJECT_DETAIL_ICONS_PREFIX = "fa"
-# CRUD_VIEWS_OBJECT_DETAIL_NAMED_ICONS = {...}                # override the named-icon map
-CRUD_VIEWS_OBJECT_DETAIL_PROPERTY_TEXT_NEWLINE = "linebreaksbr"
-```
-
-Reading the settings object directly: `crud_views_settings.as_dict` (renamed from `.dict` in
-0.20.0 — the old name shadowed the `dict` builtin and broke annotations under PEP 649 on
-Python 3.14).
-
-See [references/api-reference.md](references/api-reference.md) for full settings and all ViewSet/view attributes.
-
-Access is controlled by CRUD_VIEWS_MANAGE_VIEWS_ENABLED ("yes"/"debug_only"/"no") OR by adding users to the CRUD_VIEWS_MANAGE Django group (configurable via CRUD_VIEWS_MANAGE_GROUP setting). The group approach lets you grant selective access without changing deployment settings.
-
----
-
-## Static assets, CSP, and SRI
-
-*Available since 0.18.0.*
-
-`{% cv_js %}` and `{% cv_css %}` render the package's own assets plus every bundle registered
-by an installed app. They emit external `<script src>` / `<link>` tags — no inline JS or CSS.
-
-Put both in the base template named by `CRUD_VIEWS_EXTENDS` — that is what makes a registered
-bundle render:
-
-```html
-{% load crud_views %}
-{% cv_css %}
-{% cv_js %}
-```
-
-Core scripts: `viewset.js`, `formset.js`, `list.filter.js`, `modal.js`, `toggle.js` and — since
-0.23.0 — `tooltip.js` (initialises the package's own `[data-cv-tooltip]` triggers; call
-`cv.initTooltips(root)` after injecting such markup yourself).
-
-The package emits **no inline `<script>` or `<style>` anywhere**, so it needs no
-`'unsafe-inline'`. `{% cv_config %}` (the modal shell) is markup only — a hidden `<div>`
-carrying `data-` attributes plus an empty modal container — so it needs no nonce. Modal
-content is fetched from the view's own URL, so `connect-src 'self'` suffices.
-
-### Contributing your own JS/CSS
-
-Call `register_assets()` from your `AppConfig.ready()` — once per key, or startup raises
-`ImproperlyConfigured`. Bundles render *after* core assets, in `INSTALLED_APPS` order.
-
-```python
-from django.apps import AppConfig
-from crud_views.lib.assets import Asset, register_assets
-
-class MyAppConfig(AppConfig):
-    name = "myapp"
-
-    def ready(self):
-        register_assets(
-            "myapp",                                  # unique key
-            js=["myapp/js/widget.js"],                # static paths
-            css=["myapp/css/widget.css"],
-            # emit=False registers the bundle without rendering it
-        )
-```
-
-Entries are static paths, external URLs (`http://`, `https://`, `//` — rendered verbatim),
-or `Asset` instances. Plain strings are normalized to `Asset` internally.
-
-### Subresource Integrity for CDN assets
-
-```python
-register_assets(
-    "myapp",
-    js=[Asset(
-        path="https://cdn.example.com/lib.min.js",
-        integrity="sha384-…",       # sha256-/sha384-/sha512- prefixed
-        # crossorigin defaults to "anonymous" when integrity is set
-    )],
-)
-```
-
-Two startup checks guard this: `crud_views.E330` (integrity value is not a
-`sha256-`/`sha384-`/`sha512-` hash) and `crud_views.W332` (integrity set on a same-origin
-static path — it breaks on every asset edit and buys no security).
-
-### Content-Security-Policy nonces
-
-Nonces are automatic — **no configuration needed** in the normal case. `cv_js`/`cv_css`
-resolve a nonce in this order and stamp `nonce="…"` on every tag they emit:
-
-1. `request.<CRUD_VIEWS_CSP_NONCE_ATTR>` — default `request.csp_nonce`, the django-csp convention
-2. Django 6.0's built-in CSP middleware (`django.middleware.csp.get_nonce`)
-3. a `csp_nonce` template-context variable
-
-Output is byte-identical to before when no CSP middleware is present. Only change
-`CRUD_VIEWS_CSP_NONCE_ATTR` (default `"csp_nonce"`) if your middleware stores the nonce
-under a different request attribute.
-
-### Bundling with django-pipeline
-
-*Available since 0.25.0.*
-
-```python
-# settings.py
-from crud_views.lib.pipeline import cv_sources
-
-CRUD_VIEWS_ASSETS_BUNDLED = True   # cv_js/cv_css then emit only CDN entries
-
-PIPELINE = {
-    "JAVASCRIPT": {"main": {
-        "source_filenames": cv_sources("js", before=["js/jquery.js"], after=["js/app.js"]),
-        "output_filename": "js/main.js",
-    }},
-    "STYLESHEETS": {"main": {"source_filenames": cv_sources("css"), "output_filename": "css/main.css"}},
-}
-```
-
-- `cv_sources()` is **lazy** — pipeline reads it after `AppConfig.ready()`, so core plus every
-  registered bundle lands in the package with no hand-maintained list. Never expand it in settings
-  (`[*cv_sources(...)]` raises `AppRegistryNotReady`); use `before=`/`after=` or `list + cv_sources(...)`.
-- `keys=[...]` / `exclude=[...]` select bundles (`"crud_views"` = core, a reserved key) to split across
-  packages; `keys=None` = all, `keys=[]` = none.
-- CDN entries cannot be bundled: they stay `{% cv_js %}`/`{% cv_css %}` tags, so keep the tags in
-  the base template. Core has none; an extension must be in its vendored mode to be fully bundled
-  (W345 warns otherwise). `python manage.py cv_assets --external` lists the CDN entries.
-- Checks: W340 (bundled, no `cv_sources()` in `PIPELINE`), W341 (asset in no package), W342 (not
-  bundled → double load), W343 (unknown key), W344 (js/css mismatch), W345 (bundle mixes CDN and local).
-  Hand-written `source_filenames` strings count as coverage too; globs match per path segment like
-  pipeline's own (`*` does not cross `/`).
-
-> `AssetBundle.js` / `.css` hold `Asset` instances, not strings (changed in 0.18.0).
-> Code doing `bundle.js[0].startswith(...)` must use `bundle.js[0].path`.
-
----
-
-## System check: unknown `cv_*` attributes (W280)
-
-*Available since 0.19.0.*
-
-`viewset.W280` warns when a view declares a `cv_*` data attribute that no `crud_views` class
-recognizes — a typo or an attribute left behind by a rename — with a "Did you mean …?" hint.
-Such attributes were previously ignored in silence.
-
-```
-viewset.W280: cv_message on <class 'myapp.views.BookCreateView'> is not a known
-crud_views attribute — it is silently ignored (dead attribute or typo).
-Did you mean cv_message_template_code?
-```
-
-Only non-callable data attributes are flagged, so your own `cv_*` methods and properties are
-safe. To keep an intentional custom data attribute, exempt it explicitly:
-
-```python
-class BookCreateView(CreateViewPermissionRequired):
-    cv_viewset = cv_book
-    cv_check_ignore_attributes = frozenset({"cv_my_custom_flag"})
-    cv_my_custom_flag = True
-```
-
-The allowlist is unioned across the MRO, so a mixin and the leaf view can each exempt their own.
-
----
-
-## Formsets (Inline Child Records)
-
-*Available since 0.5.0.*
-
-Use `FormSetMixin` on Create/Update views to manage nested inline formsets. Configure with `cv_formsets`.
-
-```python
-from crud_views.lib.formsets import FormSet, FormSets, FormSetMixin, InlineFormSet
-from crispy_forms.layout import Row
-
-class ItemFormSet(InlineFormSet):
-    model = Item
-    parent_model = Order
-    fk_name = "order"
-    fields = ["name", "quantity", "price"]
-    extra = 1
-
-    def get_helper_layout_fields(self):
-        return [Row(Column4("name"), Column4("quantity"), Column4("price"))]
-
-class OrderCreateView(FormSetMixin, CrispyViewMixin, CreateViewPermissionRequired):
-    cv_viewset = cv_order
-    form_class = OrderCreateForm
-    cv_formsets = FormSets(formsets={
-        "items": FormSet(
-            klass=ItemFormSet,
-            title="Order Items",
-            fields=["name", "quantity", "price"],
-            pk_field="id",
-        )
-    })
-```
-
----
-
-## Conditional Field-Groups & Conditional FormSets
-
-A checkbox toggle can hide a group of fields (or an entire **first-level** formset). When off, the group/formset is hidden client-side and — authoritatively **server-side** — skips validation and clears its data. JS is cosmetic only; the server enforces the contract on every submit (tampered/JS-off POSTs included).
-
-Import from `crud_views.lib.conditional`.
-
-**Kind 1 — field-group in a form** (`ConditionalGroupModelForm` + `ToggleGroup`):
-
-```python
-from crud_views.lib.conditional import (
-    ConditionalGroupModelForm, ConditionalGroup, ToggleGroup, ModelFieldToggle,
-)
-
-class RegistrationForm(ConditionalGroupModelForm):
-    cv_conditional_groups = [
-        ConditionalGroup(
-            toggle=ModelFieldToggle("with_company"),   # or UIFieldToggle("...") for a non-model checkbox
-            fields=["company_name", "vat_id"],
-            required=["company_name"],                  # subset required when toggle is on
-        ),
-    ]
-    class Meta:
-        model = Registration
-        fields = ["name", "with_company", "company_name", "vat_id"]
-
-    def get_layout_fields(self):
-        return [Row(Column6("name")),
-                Row(Column6("with_company")),
-                ToggleGroup("with_company", Row(Column6("company_name"), Column6("vat_id")),
-                            legend="Company details")]  # legend=… renders the group as a titled <fieldset>
-```
-
-Off ⇒ group fields are cleared (must be `null=True, blank=True`, or pass `empty_values=`). On ⇒ `required` fields enforced.
-
-**Kind 2 — an entire first-level formset** (`ConditionalFormSet` on a `FormSet`):
-
-```python
-from crud_views.lib.conditional import ConditionalFormSet, ModelFieldToggle
-
-sessions=FormSet(
-    title="Sessions", klass=SessionFormSet, fields=["title"], pk_field="id",
-    conditional=ConditionalFormSet(toggle=ModelFieldToggle("with_sessions"), on_off="skip"),
-)
-```
-
-The parent-form toggle (`with_sessions`) governs the whole formset. `on_off="skip"` (default) leaves existing rows untouched when off; `on_off="purge"` deletes them on save — permanently, even if the formset sets `can_delete=False`/`edit_only=True` (warned by `W321`); the save flow is transactional, so a failed sibling save rolls a purge back. Only **first-level** formsets may be conditional (nested ⇒ check error `crud_views.E310`).
-
-The form must expose the toggle field itself: **`ConditionalFormSet` toggles are never auto-injected** (only `ConditionalGroup` toggles are, via `ConditionalGroupFormMixin`). Use a model field, declare a `BooleanField(required=False)` on the form, or reuse a group-injected `UIFieldToggle`; a missing toggle is flagged by `E311` and would otherwise be permanently off.
-
-System checks: `crud_views.E310` (conditional on nested formset), `crud_views.E311` (toggle field missing from the form and not group-injected), `crud_views.W320` (cleared field not null/blank), `crud_views.W321` (`purge` on a formset forbidding row deletion).
-
----
-
-## Polymorphic Models (`crud_views_polymorphic`)
-
-*Available since 0.5.0.*
-
-Two-step create flow for polymorphic models (requires `django-polymorphic`).
-
-Install: `pip install django-crud-views[polymorphic]`, add `"crud_views_polymorphic.apps.CrudViewsPolymorphicConfig"` to `INSTALLED_APPS`.
-
-```python
-from crud_views_polymorphic.lib import (
-    PolymorphicCreateSelectViewPermissionRequired,  # step 1: choose subtype
-    PolymorphicCreateViewPermissionRequired,         # step 2: fill subtype form
-    PolymorphicUpdateViewPermissionRequired,
-    PolymorphicDetailViewPermissionRequired,
-)
-from crud_views_polymorphic.lib.create_select import PolymorphicContentTypeForm
-from crud_views_polymorphic.lib.delete import PolymorphicDeleteViewPermissionRequired
-
-class VehicleCreateSelectView(CrispyViewMixin, PolymorphicCreateSelectViewPermissionRequired):
-    form_class = PolymorphicContentTypeForm
-    cv_viewset = cv_vehicle
-    # cv_polymorphic_include = [Car, Truck]  # optional whitelist
-    # cv_polymorphic_exclude = [...]         # optional blacklist (mutually exclusive)
-
-class VehicleCreateView(CrispyViewMixin, PolymorphicCreateViewPermissionRequired):
-    cv_viewset = cv_vehicle
-    polymorphic_forms = {Car: CarForm, Truck: TruckForm}
-
-class VehicleUpdateView(CrispyViewMixin, PolymorphicUpdateViewPermissionRequired):
-    cv_viewset = cv_vehicle
-    polymorphic_forms = {Car: CarForm, Truck: TruckForm}
-
-class VehicleDeleteView(CrispyViewMixin, PolymorphicDeleteViewPermissionRequired):
-    form_class = CrispyDeleteForm
-    cv_viewset = cv_vehicle
-
-# property grid on a polymorphic detail view requires ObjectDetailMixin (see Detail views above)
-class VehicleDetailView(ObjectDetailMixin, PolymorphicDetailViewPermissionRequired):
-    cv_viewset = cv_vehicle
-    cv_property_display = [
-        {"title": "Attributes", "properties": ["name"]},
-    ]
-```
-
-List view must use `cv_context_actions = ["create_select"]` instead of `"create"`.
-
----
-
-## WorkflowView (FSM State Transitions)
-
-*Available since 0.5.0.*
-
-Integrates django-fsm-2 state machines with the CRUD framework. Provides transition execution, comment requirements, and a full audit log.
-
-Full reference: see [references/workflow.md](references/workflow.md)
-
-### Quick pattern
-
-```python
-# 1. Model: mix in WorkflowModelMixin, define states and @transition methods
-from django.db import models
-from django_fsm import FSMField, transition
-from crud_views_workflow.lib.enums import WorkflowComment, BadgeEnum
-from crud_views_workflow.lib.mixins import WorkflowModelMixin
-
-class CampaignState(models.TextChoices):
-    NEW = "new", "New"
-    ACTIVE = "active", "Active"
-    DONE = "done", "Done"
-
-class Campaign(WorkflowModelMixin, models.Model):
-    STATE_CHOICES = CampaignState
-    STATE_BADGES = {
-        CampaignState.NEW: BadgeEnum.LIGHT,
-        CampaignState.ACTIVE: BadgeEnum.INFO,
-        CampaignState.DONE: BadgeEnum.SUCCESS,
-    }
-    STATE_BADGE_DEFAULT = BadgeEnum.SECONDARY  # fallback for unmapped states
-    COMMENT_DEFAULT = WorkflowComment.NONE     # fallback when custom["comment"] omitted
-    state = FSMField(default=CampaignState.NEW, choices=CampaignState.choices)
-
-    @transition(field=state, source=CampaignState.NEW, target=CampaignState.ACTIVE,
-                on_error=CampaignState.DONE,
-                custom={"label": "Activate", "comment": WorkflowComment.NONE})
-    def wf_activate(self, request=None, by=None, comment=None):
-        pass
-
-    @transition(field=state, source=CampaignState.NEW, target=CampaignState.DONE,
-                on_error=CampaignState.DONE,
-                custom={"label": "Complete", "comment": WorkflowComment.REQUIRED})
-    def wf_complete(self, request=None, by=None, comment=None):
-        pass
-
-# 2. Form
-from crud_views_workflow.lib.forms import WorkflowForm
-class CampaignWorkflowForm(WorkflowForm):
-    class Meta(WorkflowForm.Meta):
-        model = Campaign
-
-# 3. View
-from crud_views_workflow.lib.views import WorkflowViewPermissionRequired
-class CampaignWorkflowView(CrispyViewMixin, MessageMixin, WorkflowViewPermissionRequired):
-    cv_context_actions = ["list", "detail", "workflow"]
-    cv_viewset = cv_campaign
-    form_class = CampaignWorkflowForm
-
-    def on_transition(self, info, transition, state_old, state_new, comment, user, data):
-        # optional hook: runs after each successful transition
-        pass
-```
-
-WorkflowComment values: `NONE` (hidden), `OPTIONAL` (shown, not required), `REQUIRED` (shown, mandatory).
-
-Install: `pip install django-crud-views[workflow]`, add `"crud_views_workflow.apps.CrudViewsWorkflowConfig"` to `INSTALLED_APPS`, run `migrate`.
-
----
-
-## Per-Object Permissions (`crud_views_guardian`)
-
-*Available since 0.4.0 (strict mode became the default in 0.6.0).*
-
-Integrates [django-guardian](https://django-guardian.readthedocs.io/) for per-object permission checking and queryset filtering. Swap `ViewSet` → `GuardianViewSet` and `*ViewPermissionRequired` → `Guardian*ViewPermissionRequired`.
-
-Install: `pip install django-crud-views[guardian]`, add `"guardian"` and `"crud_views_guardian.apps.CrudViewsGuardianConfig"` to `INSTALLED_APPS`, add `"guardian.backends.ObjectPermissionBackend"` to `AUTHENTICATION_BACKENDS`, set `ANONYMOUS_USER_NAME = None`, run `migrate`.
-
-```python
-from crud_views_guardian.lib.viewset import GuardianViewSet
-from crud_views_guardian.lib.views import (
-    GuardianListViewPermissionRequired,
-    GuardianDetailViewPermissionRequired,
-    GuardianCreateViewPermissionRequired,
-    GuardianUpdateViewPermissionRequired,
-    GuardianDeleteViewPermissionRequired,
-)
-
-cv_author = GuardianViewSet(model=Author, name="author")
-
-class AuthorListView(ListViewTableMixin, GuardianListViewPermissionRequired):
-    cv_viewset = cv_author
-
-class AuthorDetailView(GuardianDetailViewPermissionRequired):
-    cv_viewset = cv_author
-```
-
-### Assigning permissions
-
-```python
-cv_author.assign_perm("view", user, author_instance)   # grant
-cv_author.remove_perm("view", user, author_instance)   # revoke
-cv_author.assign_perm("change", group, author_instance)
-qs = cv_author.get_objects_for_user(user, "view")
-```
-
-### Strict mode (default)
-
-`cv_guardian_accept_global_perms = False` by default — model-level Django permissions are **not** a fallback. Only explicit per-object grants count. Override per view:
-
-```python
-class AuthorDetailView(GuardianDetailViewPermissionRequired):
-    cv_viewset = cv_author
-    cv_guardian_accept_global_perms = True  # allow model-level perms as fallback
-```
-
-On a child view the flag also covers the **parent** check: a model-level permission on the parent
-model (e.g. `app.view_author`) is accepted as a fallback for the per-object grant — *since 0.23.0*;
-before, the parent check ignored the flag and returned 403.
-
-### Create views
-
-- **Top-level creates** (no parent): standard model-level `add_<model>` permission is checked.
-- **Child creates** (with parent viewset): guardian checks per-object permission on the parent using `cv_guardian_parent_create_permission`. Child create views **must** use `GuardianCreateViewPermissionRequired` — using plain `CreateViewPermissionRequired` hides the button permanently and blocks the form page.
-
-### Child create button visibility
-
-`cv_has_access` is a classmethod — it has no access to request or URL kwargs. When the "create" button is rendered from a child list page, `obj=None` and the parent cannot be determined inside `cv_has_access` alone.
-
-`GuardianListViewPermissionRequired` solves this: its `cv_get_context` override resolves the parent from the URL via `cv_get_parent_object()` and calls `cv_create_has_access(user, rendering_view, parent_obj)` on the create view class. The default implementation checks `cv_guardian_parent_create_permission` on the parent. Override `cv_create_has_access` on the create view class for custom logic (e.g. role-based checks that go beyond a single guardian perm):
-
-```python
-class BookCreateView(CreateViewParentMixin, GuardianCreateViewPermissionRequired):
-    cv_viewset = cv_book
-    form_class = BookCreateForm
-
-    @classmethod
-    def cv_create_has_access(cls, user, rendering_view, parent_obj):
-        # rendering_view is the list view instance — has .request, .kwargs, etc.
-        if parent_obj is None:
-            return False
-        from guardian.core import ObjectPermissionChecker
-        return ObjectPermissionChecker(user).has_perm("change_publisher", parent_obj)
-```
-
-### Parent viewsets
-
-```python
-cv_book = GuardianViewSet(
-    model=Book,
-    name="book",
-    parent=ParentViewSet(name="author"),
-    cv_guardian_parent_permission="view",           # for list/detail/update/delete
-    cv_guardian_parent_create_permission="change",  # for create (None = use above)
-)
-```
-
-Setting either to `None` disables the parent check for that view type.
-
-### Cascading Deletes with Per-Object Permissions
-
-When `cv_show_related_objects = True` on a Guardian delete view, related objects are filtered using per-object `view` permissions (via `guardian.shortcuts.get_objects_for_user`) instead of model-level permissions:
-
-```python
-class PublisherDeleteView(CrispyViewMixin, GuardianDeleteViewPermissionRequired):
-    form_class = CrispyDeleteForm
-    cv_viewset = cv_publisher
-    cv_show_related_objects = True
-```
-
-Objects the user has per-object `view` permission for are shown with full details; others appear as aggregated counts.
-
-### GuardianManageView
-
-GuardianManageView: auto-wired by `GuardianViewSet.register()`. Extends ManageView with a Guardian Configuration section, per-object permission holder counts (Group → Permission → N objects), and a Guardian Mixin column in the Views table. No manual configuration required — just enable manage views or add users to CRUD_VIEWS_MANAGE group.
-To customise the manage view class for a specific viewset, pass `manage_view_class="dotted.path.MyClass"` to `GuardianViewSet(...)` (or plain `ViewSet(...)`). Global defaults: `CRUD_VIEWS_GUARDIAN_MANAGE_VIEW_CLASS` for guardian viewsets, `CRUD_VIEWS_MANAGE_VIEW_CLASS` for plain viewsets. Per-viewset field takes priority over the global setting.
-
----
-
-## Transactions & hooks (since 0.27.0)
-
-Form, delete and action views run their write phase in one transaction:
-`cv_form_valid` + `cv_form_valid_hook` (resp. `action()` + `cv_action_success_hook` /
-`cv_action_error_hook`) are inside `transaction.atomic(using=cv_get_db_alias())`. Side effects go
-in `cv_on_commit(context)`, which runs after the commit and never after a rollback. Workflow views
-put the transition record in `context["workflow_info"]`.
-
-- `cv_atomic = False`: no transaction (default on `ResourceViewMixin`; needed for
-  `atomic(durable=True)` services).
-- Another database: override `cv_get_db_alias()` (the transaction and `cv_on_commit` both use it).
-  Override `cv_get_atomic()` only for a custom boundary on that same alias.
-- `action()` returning `False` does not roll back; call `transaction.set_rollback(True)`.
-- Overriding `post()`? Call `cv_form_valid_process(context)` / `cv_action_process(context)` to
-  keep the transaction.
-- Migrating from 0.26: an exception in those hooks now rolls back the write; a caught
-  `IntegrityError` inside `cv_form_valid` needs a nested `atomic()` on PostgreSQL;
-  `atomic(durable=True)` in the write phase raises `RuntimeError` (set `cv_atomic = False`).
-
----
-
-## Common Mistakes
-
-| Mistake | Fix |
-|---|---|
-| `cv_list_actions_inline` set but no `⋯` menu appears | The project overrides `columns/actions.html` / `tags/context_actions.html` / `tags/card.html`; adopt the package's `{% if group is None %}` branch (0.28.0) |
-| POST `ActionView` in `cv_context_actions` answers 405 when clicked (up to 0.28.0) | The toolbar rendered POST actions as GET links; fixed in 0.29.0 (#178) — upgrade. A hand-placed `{% cv_context_button %}` for a POST key also needs `{% cv_context_action_form "key" %}` |
-| Startup warns `viewset.W290` | A key in the view's own `cv_*_actions_inline` is not among that location's actions — fix the typo (ViewSet/setting values are never checked) |
-| Custom `list_action.html` / `card_action.html` placeholder for `not cv_access` vanished (0.28.0) | In the default hide mode the tags pass an empty context; set the target view's `cv_inaccessible_actions = "disable"` and use the `cv_disabled` branch |
-| Startup fails `viewset.E110` on a backend-only view (since 0.29.0); up to 0.28.0 the button raised `CrudViewError: no template or template_code provided` at request time | Give it `cv_action_label_template_code` and `cv_action_short_label_template_code` — `cv_backend_only = True` exempts only header/paragraph, not the labels its buttons render (#179) |
-| Sending mail / starting Celery tasks in `cv_form_valid_hook`, `action()` or `on_transition` | They run before the commit (since 0.27.0); use `cv_on_commit(context)` |
-| Context button silently missing (0.24.2–0.27.0) | An unresolvable target (`child_key="lsit"`) is skipped at render time; since 0.27.1 `viewset.E255` reports it at startup — fix the name or register the view. Customizing a default (`home` with its own label) on a ViewSet without `list` now fails E255: drop it there |
-| `viewset.W280` flags `cv_parent_key` (0.27.0) | It was never read and is removed; the parent link's target is `ParentContextButton(key="parent", key_target=...)` |
-| CSS/test selectors for list or filter actions broke in 0.23.0 | List actions that POST (`ActionView`s such as `up`/`down`) and the filter toggle `#cv-filter-toggle` are `<button type="button">` now, not `<a href="#">`; navigating actions are plain `<a>` without `role="button"`. Select by class/id/`cv-key`, not by tag |
-| Overriding `tags/list_action.html` / `tags/context_action.html` loses the accessible name | Icon-only controls carry their name as `<span class="visually-hidden">{{ cv_action_label }}</span>` with the icon `aria-hidden="true"` (0.23.0) — keep both. Prefer that over `aria-label`: same name, and Sonar's `Web:S7927` misreads `aria-label` next to template tags |
-| `card-rows` detail tooltip never appears | Before 0.23.0 nothing initialised it — upgrade. Needs `{% cv_js %}` and Bootstrap's JS; for markup you inject yourself call `cv.initTooltips(root)` |
-| Guardian child routes 403 although the user has the model-level parent perm and `cv_guardian_accept_global_perms = True` | Before 0.23.0 the parent check ignored the flag — upgrade |
-| `Table.ca.w10 \| …` adds classes to other columns too (before 0.23.0) | `ColumnAttrs.__or__` modified the shared preset; fixed in 0.23.0 — upgrade, no code change |
-| Signed card ordering with `?order=+name` in a link | `+` decodes to a space in a query string; ascending is the bare name: `?order=name` (0.22.0) |
-| Expecting `dir=desc` to flip a signed card order | In signed mode the direction lives in the value (`?order=-name`); `dir` is ignored |
-| Mixin after base view class | Mixins must come **before**: `CrispyViewMixin, MessageMixin, CreateViewPermissionRequired` |
-| Child viewset URLs missing | Every viewset needs `urlpatterns += cv_book.urlpatterns` separately |
-| FK not auto-assigned on child create | Add `CreateViewParentMixin` to the child create view |
-| Polymorphic list uses `"create"` | Use `cv_context_actions = ["create_select"]` instead |
-| Guardian: model-level perms not working | Set `cv_guardian_accept_global_perms = True` on the view |
-| Guardian: users see no objects | Check `assign_perm` was called — strict mode ignores model-level grants by default |
-| Guardian child create: button always hidden | Child create view uses `CreateViewPermissionRequired` instead of `GuardianCreateViewPermissionRequired` |
-| Guardian child create: button always visible | `GuardianCreateViewPermissionRequired` is used but `cv_guardian_parent_create_permission` is not set on the viewset |
-| Cascading deletes not showing | Set `cv_show_related_objects = True` on the delete view (opt-in, off by default) |
-| Related object links not rendering | Set `cv_link_related_objects = True` and ensure the related model has a ViewSet with a `detail` view |
-| `cv_modal` raises `viewset.E251` | Modal is phase-1 only: `DeleteView`, `DetailView`, `CustomFormView`, `CustomFormNoObjectView` (create/update/list not supported) |
-| `cv_modal_size` raises `viewset.E250` | Use an exact value: `""`, `"modal-sm"`, `"modal-lg"`, or `"modal-xl"` (not `"lg"`, `"large"`, etc.) |
-| `cv_property_display` renders nothing | Core `DetailView` has no property grid — use `ObjectDetailView`, or compose `ObjectDetailMixin` onto a polymorphic/guardian detail view |
-| `ImportError: No module named 'django_object_detail'` | Removed in 0.17.0; import from `crud_views_object_detail.lib` and add that app to `INSTALLED_APPS` |
-| `OBJECT_DETAIL_*` settings silently ignored | Renamed in 0.17.0 to `CRUD_VIEWS_OBJECT_DETAIL_*` |
-| Startup warns `viewset.W280` | A `cv_*` attribute no class recognizes — fix the typo, or allow it via `cv_check_ignore_attributes` |
-| Action-column CSS/test selectors broke in 0.20.0 | The `th`/`td` class changed from `d-flex justify-content-end` to `cv-col-action` (flex broke the row separator); the shipped `table.css` right-aligns with `text-align` |
-| `ImportError` on `import crud_views` | Since 0.20.0 a missing `django-filter` or `django-crispy-forms` fails immediately instead of later — both are required; fix the install |
-| `CRUD_VIEWS_CANCEL_ORIGIN_PARAM` silently ignored | Renamed in 0.26.0 to `CRUD_VIEWS_ORIGIN_PARAM` (shared by `cv_cancel_keys` and `cv_success_keys`) |
-| `DeleteView` with `cv_success_key = "detail"` → `NoReverseMatch` (before 0.26.0) / `viewset.E254` | The object is deleted before the redirect; send success to a list-type view |
-| `cv_cancel_keys` origin lost after a validation error | An overridden `*.content.html` posts to `request.path`; use `request.get_full_path` (package templates switched in 0.21.0) |
-| `CustomFormNoObjectView` crashes on GET (before 0.21.0) | It inherited the detail actions, which need an object; 0.21.0 defaults to `CRUD_VIEWS_CREATE_CONTEXT_ACTIONS`. Upgrade — a `cv_context_actions` set only to dodge the crash can go |
-| Crispy cancel on a `CustomFormView` with `CrispyModelForm` links to a non-existent object (before 0.21.0) | It used the form's unsaved `instance`; fixed in 0.21.0 to use the view's object — upgrade, no code change |
-| `PIPELINE` built with `[*cv_sources("js"), ...]` → `AppRegistryNotReady` at startup | Keep it lazy: `cv_sources("js", before=[...], after=[...])` or `[...] + cv_sources("js")` (0.25.0) |
-| Extension bundled by pipeline in CDN mode — its init script runs before the CDN plugin (W345) | Switch the extension to vendored mode (e.g. datetimepicker `SOURCE="vendored"` + `cv_vendor_datetimepicker`); find CDN entries with `manage.py cv_assets --external` |
+| Mixin after the base view class | Mixins come **before**: `CrispyViewMixin, MessageMixin, CreateViewPermissionRequired` | |
+| Child ViewSet URLs missing | Every ViewSet needs its own `urlpatterns += cv_book.urlpatterns` | |
+| FK not assigned on child create | Add `CreateViewParentMixin` to the child create view | |
+| `ViewSet(pk="UUID")` → no URL matches | `pk` is a URL regex; leave it unset (auto-detected) or use `ViewSet.PK.UUID` | api-reference.md |
+| Mail / Celery task sent although the save rolled back | Move it from `cv_form_valid_hook` / `action()` / `on_transition` to `cv_on_commit(context)` | form-views.md |
+| `cv_property_display` renders nothing | Core `DetailView` has no property grid — use `ObjectDetailView`, or put `ObjectDetailMixin` first on a polymorphic/guardian detail view | detail-views.md |
+| `cv_modal = True` raises `viewset.E251` | Modals support only `DeleteView`, `DetailView`, `CustomFormView`, `CustomFormNoObjectView` | form-views.md |
+| `cv_modal_size` raises `viewset.E250` | Exact values only: `""`, `"modal-sm"`, `"modal-lg"`, `"modal-xl"` (not `"lg"`, `"large"`) | form-views.md |
+| Cascading deletes not shown | `cv_show_related_objects = True` (opt-in); links need `cv_link_related_objects = True` and a `detail` view on the related ViewSet | form-views.md |
+| `DeleteView` success to `"detail"` fails `viewset.E254` | The object is gone after delete; send success to a list-type view | form-views.md |
+| `cv_cancel_keys` origin lost after a validation error | An overridden `*.content.html` posts to `request.path`; use `action="{{ request.get_full_path }}"` | form-views.md |
+| `AttributeError: type object '…FormSet' has no attribute 'can_order'` | `FormSet(klass=...)` needs the result of `inlineformset_factory(..., formset=YourInlineFormSet)`, not the `InlineFormSet` subclass; don't put `model`/`fields` on the subclass | forms-and-formsets.md |
+| Formset rows never render | The parent form layout lacks `Formsets()`, or crispy's `form_tag` is still on | forms-and-formsets.md |
+| Polymorphic list offers `"create"` | Use `cv_context_actions = ["create_select"]` | polymorphic.md |
+| Guardian: users see no objects | Strict mode ignores model-level grants; call `assign_perm`, or set `cv_guardian_accept_global_perms = True` | guardian.md |
+| Guardian child create: button always hidden | The child create view uses `CreateViewPermissionRequired` instead of `GuardianCreateViewPermissionRequired` | guardian.md |
+| Guardian child create: button always visible | `cv_guardian_parent_create_permission` not set on the child `GuardianViewSet` | guardian.md |
+| Hand-placed `{% cv_context_button %}` for a POST key does nothing | Also render `{% cv_context_action_form "key" %}` outside any `.btn-group` | detail-views.md |
+| Startup fails `viewset.E110` on a backend-only view | Give it `cv_action_label_template_code` and `cv_action_short_label_template_code`; `cv_backend_only = True` exempts only header/paragraph | system-checks.md |
+| Startup fails `viewset.E255` | A context button's target (`key_target`, `child_name`/`child_key`, `sibling_name`) doesn't resolve — fix the name or register the view | actions-and-buttons.md |
+| Startup warns `viewset.W280` | A `cv_*` attribute no class recognizes — fix the typo, or allow it via `cv_check_ignore_attributes` | system-checks.md |
+| Startup warns `viewset.W290`, or no `⋯` menu appears | A key in the view's own `cv_*_actions_inline` isn't among its actions; or the project overrides `columns/actions.html` / `tags/context_actions.html` / `tags/card.html` without the `{% if group is None %}` branch | actions-and-buttons.md |
+| Overriding `tags/list_action.html` / `tags/context_action.html` loses the accessible name | Keep `<span class="visually-hidden">{{ cv_action_label }}</span>` and the icon's `aria-hidden="true"`. Prefer that over `aria-label`: same name, and Sonar's `Web:S7927` misreads `aria-label` next to template tags | |
+| `card-rows` detail tooltip never appears | Needs `{% cv_js %}` and Bootstrap's JS; for markup you inject yourself call `cv.initTooltips(root)` | detail-views.md |
+| Signed card ordering link `?order=+name` | `+` decodes to a space; ascending is the bare name `?order=name`; in signed mode `dir` is ignored | lists-and-cards.md |
+| `ImportError: cannot import name 'PrimaryKeys' ... (circular import)` at startup | A `models.py` imports `crud_views.lib.viewset` / `crud_views.lib.table` (e.g. a `Resource` using `ViewSet.PK`); keep crud_views code in `views.py` | resources.md |
+| `ImportError` on `import crud_views` | `django-filter` and `django-crispy-forms` are required dependencies; fix the install | |
+| `PIPELINE` built with `[*cv_sources("js"), ...]` → `AppRegistryNotReady` | Keep it lazy: `cv_sources("js", before=[...], after=[...])` or `[...] + cv_sources("js")` | assets.md |
+| Extension bundled by pipeline in CDN mode (`W345`) | Switch the extension to vendored mode (e.g. datetimepicker `SOURCE="vendored"` + `cv_vendor_datetimepicker`); list CDN entries with `manage.py cv_assets --external` | assets.md |

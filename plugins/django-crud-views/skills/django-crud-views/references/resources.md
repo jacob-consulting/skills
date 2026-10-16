@@ -29,6 +29,11 @@ instead. Resources are for rendering data that already lives somewhere else.
 Subclass `Resource` like a Pydantic model, with an inner `Meta` (same idiom as
 Django's model `Meta`) and a `cv_get_items` classmethod that returns all rows:
 
+Define Resource classes in `views.py` (or a module imported from it), **not** in `models.py`.
+`models.py` is imported while Django loads apps; importing `crud_views.lib.viewset` (for
+`ViewSet.PK`) or `crud_views.lib.table` that early raises a circular `ImportError` in 0.29.1.
+`models.py` should hold only the permission-holder model (see [Permissions](#permissions)).
+
 ```python
 import hashlib
 
@@ -437,6 +442,6 @@ with warnings.catch_warnings():
 
 ---
 
-See also, in the main [SKILL.md](../SKILL.md): Custom Form View, Custom Action
-View, and Detail views; and the property-grid `ObjectDetailView` (`cv_property_display`)
+See also [form-views.md](form-views.md) (Custom Form View, Custom Action View) and
+[detail-views.md](detail-views.md); and the property-grid `ObjectDetailView` (`cv_property_display`)
 walkthrough in [quickstart.md](quickstart.md).

@@ -23,10 +23,12 @@ Start a new Claude Code session afterwards. The skill loads automatically when y
 | Skills | 1 — `django-crud-views` |
 | Agents / Hooks / MCP servers | 0 |
 
-The skill lives at [`skills/django-crud-views/SKILL.md`](skills/django-crud-views/SKILL.md) with
-reference material under `skills/django-crud-views/references/` (API reference, quickstart,
-workflow, and non-ORM resources). Feature sections carry `Available since X.Y.Z` markers matching
-the package's releases.
+The skill lives at [`skills/django-crud-views/SKILL.md`](skills/django-crud-views/SKILL.md): a short
+entry point with the core patterns and a table that routes each feature to a topic file under
+`skills/django-crud-views/references/` (detail views, lists and cards, form views, formsets, actions and
+buttons, Guardian, polymorphic, workflow, resources, assets, settings, system checks, API reference).
+Feature sections carry `Available since X.Y.Z` markers matching the package's releases; upgrade notes
+for older package versions are in `references/migration.md`.
 
 ## Author
 
