@@ -14,6 +14,14 @@
       "author": { "name": "Alexander Jacob", "email": "alexander.jacob@jacob-consulting.de" },
       "category": "development",
       "homepage": "https://github.com/jacob-consulting/skills"
+    },
+    {
+      "name": "django-crud-views-extensions",
+      "source": "./plugins/django-crud-views-extensions",
+      "description": "Form widgets for django-crud-views — a jQuery date/time picker and a server-backed, permission-aware type-ahead select for large model choice sets.",
+      "author": { "name": "Alexander Jacob", "email": "alexander.jacob@jacob-consulting.de" },
+      "category": "development",
+      "homepage": "https://github.com/jacob-consulting/skills"
     }
   ]
 }

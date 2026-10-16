@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The `django-crud-views-extensions` plugin: date/time picker and type-ahead select widgets for
+  django-crud-views.
+
 ## [1.2.0] — 2026-08-04
 
 ### Changed

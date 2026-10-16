@@ -10,6 +10,7 @@ Add this marketplace, then install the plugin:
 ```
 /plugin marketplace add jacob-consulting/skills
 /plugin install django-crud-views@jacob-consulting
+/plugin install django-crud-views-extensions@jacob-consulting   # optional: the widget apps
 ```
 
 Then start a new Claude Code session. Update later with `/plugin update django-crud-views@jacob-consulting`.
@@ -27,6 +28,7 @@ Then start a new Claude Code session. Update later with `/plugin update django-c
 | Plugin | Description |
 |---|---|
 | `django-crud-views` | Build Django CRUD interfaces with the django-crud-views package — ViewSets, tables, filters, forms, workflows, per-object permissions, and non-ORM resources. |
+| `django-crud-views-extensions` | Form widgets for django-crud-views — a jQuery date/time picker and a server-backed, permission-aware type-ahead select for large model choice sets. |
 
 ## Repository structure
 
