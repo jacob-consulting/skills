@@ -10,6 +10,8 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-10-16
+
 ### Added
 - `references/guardian.md`: granting the creator per-object permissions in `cv_form_valid` (strict mode otherwise
   hides what a user just created), and how child rows relate to the parent grant: by default they are checked
@@ -233,3 +235,4 @@ Initial published release — the `django-crud-views` skill packaged as a Claude
 [0.13.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.13.0
 [0.14.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.14.0
 [0.14.1]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.14.1
+[0.15.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.15.0
