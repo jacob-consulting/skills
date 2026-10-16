@@ -10,6 +10,8 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-10-16
+
 ### Changed
 - Restructured the skill: `SKILL.md` shrinks from 1,499 to ~250 lines (74 KB → 17 KB loaded per trigger) and holds
   the core model, setup, the five-view pattern, nesting, hooks, a routing table and the current-version Common
@@ -206,3 +208,4 @@ Initial published release — the `django-crud-views` skill packaged as a Claude
 [0.11.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.11.0
 [0.12.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.12.0
 [0.13.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.13.0
+[0.14.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.14.0
