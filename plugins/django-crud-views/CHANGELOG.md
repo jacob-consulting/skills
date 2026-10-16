@@ -10,6 +10,8 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+## [0.15.2] — 2026-10-16
+
 ### Changed
 - Shorter skill description (1019 → 698 characters, under the 1024 limit with room to spare). It names
   what the skill is not for (DRF, the Django admin, plain generic views). Trigger eval: 60/60 correct runs vs 59/60 before.
@@ -249,3 +251,4 @@ Initial published release — the `django-crud-views` skill packaged as a Claude
 [0.14.1]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.14.1
 [0.15.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.15.0
 [0.15.1]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.15.1
+[0.15.2]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.15.2
