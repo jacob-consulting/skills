@@ -189,7 +189,8 @@ invalid forms and delete protection re-render inside the open modal (status `422
 (`crud_views_plain`) all render the normal full page. `cv_modal = False` (the default) changes nothing.
 
 **Re-init hook:** after each content injection a `cv:modal:loaded` CustomEvent fires on `#cv-modal` — use
-it to initialize custom widgets inside modal content.
+it to initialize custom widgets inside modal content. Formset rows added after page load get the
+analogous `cv:formset:row-added` (see forms-and-formsets.md).
 
 Full reference: see [api-reference.md](api-reference.md).
 

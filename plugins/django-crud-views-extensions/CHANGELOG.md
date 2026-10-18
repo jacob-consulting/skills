@@ -10,6 +10,11 @@ The plugin version is independent of the `django-crud-views-extensions` package 
 
 ## [Unreleased]
 
+### Added
+- Package 0.3.3: pickers and typeaheads initialise in formset rows added after page load (django-crud-views
+  ≥ 0.29.4 `cv:formset:row-added`). The Common Mistakes row about "new formset rows stay inert" now applies only
+  to content added by your own JavaScript, plus a new row for older versions.
+
 ## [0.1.0] — 2026-10-16
 
 ### Added

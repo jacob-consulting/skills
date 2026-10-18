@@ -254,8 +254,9 @@ of `<body>`, so it works in Bootstrap 5 modals — but an ancestor with `overflo
 
 ### Modals and dynamic content
 
-Both widgets initialise on `DOMContentLoaded` and on crud_views' `cv:modal:loaded` event. For other dynamically
-added content (new formset rows, your own AJAX):
+Both widgets initialise on `DOMContentLoaded`, on crud_views' `cv:modal:loaded` event and — *since 0.3.3*, with
+django-crud-views ≥ 0.29.4 — on `cv:formset:row-added`, which crud_views dispatches on each formset row added via
+the add button. For other dynamically added content (your own AJAX, your own row cloning):
 
 ```javascript
 window.cvTypeahead.init(container);        // text typeahead
@@ -367,7 +368,7 @@ endpoint). Start from the default templates in
    selected. Visible text is the stored pk's label except while typing (restore on blur and submit). Clear only via
    clear button or fully emptied text. Arrow keys preview only. Enter never submits while the list is open or the
    text isn't a selection. Escape and highlight labels yourself — never insert server text as HTML. Show "N more"
-   from `count`. ARIA combobox/listbox with a live result count. Re-initialise on `cv:modal:loaded` and expose an
+   from `count`. ARIA combobox/listbox with a live result count. Re-initialise on `cv:modal:loaded` and `cv:formset:row-added` (inside `event.target`) and expose an
    `init(root)` like `window.cvTypeahead.init`.
 
 Select popup skin: same three steps with `SELECT_TEMPLATE` and `SELECT_EMIT = False`. `widget.attrs` land on the
