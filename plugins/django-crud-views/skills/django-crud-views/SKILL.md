@@ -11,7 +11,7 @@ subclass registers itself with its ViewSet through `cv_viewset`, and sibling vie
 (`"list"`, `"detail"`, `"update"`, …) to render action buttons and redirects.
 
 Supported: Python ≥ 3.12, tested on 3.12–3.15 (3.15 since 0.29.1) with Django 4.2 / 5.2 / 6.0; Django 4.2 only on
-Python ≤ 3.13, as Django itself requires. This skill describes package **0.29.3**. If the project pins an older
+Python ≤ 3.13, as Django itself requires. This skill describes package **0.29.4**. If the project pins an older
 version, or code mentions names you can't find here, read [references/migration.md](references/migration.md).
 
 ## How to use this skill

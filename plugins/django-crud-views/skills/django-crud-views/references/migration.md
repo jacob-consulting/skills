@@ -1,8 +1,14 @@
 # Upgrading and older package versions
 
-The rest of this skill describes the current package (0.29.3). Read this file when a project pins an
+The rest of this skill describes the current package (0.29.4). Read this file when a project pins an
 older `django-crud-views`, when you are upgrading one, or when code or errors mention names that no
 longer exist. Newest first.
+
+## 0.29.4
+
+| Symptom on older versions | Change |
+|---|---|
+| Date pickers, select widgets, tooltips or conditional field-groups are dead in a formset row added with the add button (up to 0.29.3) | Since 0.29.4 `formset.js` dispatches `cv:formset:row-added` on each new row and core scripts re-initialize on it (#197). On older versions initialize widgets yourself after the row is inserted |
 
 ## 0.29.3
 

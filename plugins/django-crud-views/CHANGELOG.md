@@ -13,7 +13,10 @@ The plugin version is independent of the `django-crud-views` package it document
 ### Added
 - `cv:formset:row-added` (package 0.29.4): the event `formset.js` dispatches on each row added via the
   add button, so widgets in new rows can be initialized; documented in forms-and-formsets.md, cross-referenced
-  from the modal re-init hook, plus a troubleshooting row.
+  from the modal re-init hook, plus a troubleshooting row and a 0.29.4 migration entry.
+
+### Changed
+- The skill now describes package 0.29.4.
 
 ## [0.15.2] — 2026-10-16
 
