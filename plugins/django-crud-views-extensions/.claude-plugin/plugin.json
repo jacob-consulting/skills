@@ -1,7 +1,7 @@
 {
   "name": "django-crud-views-extensions",
   "description": "Form widgets for django-crud-views — a jQuery date/time picker and a server-backed, permission-aware type-ahead select for large model choice sets.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": { "name": "Alexander Jacob", "email": "alexander.jacob@jacob-consulting.de" },
   "homepage": "https://github.com/jacob-consulting/skills"
 }
