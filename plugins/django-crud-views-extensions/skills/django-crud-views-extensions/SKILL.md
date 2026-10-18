@@ -184,5 +184,6 @@ Lookups, widgets, endpoint, security, skins, pipeline: [references/typeahead.md]
 | Lookup defined outside `<app>/typeahead.py` and never imported | Put it in `typeahead.py` (autodiscovered) or import it from `AppConfig.ready()` |
 | Registering the same lookup name twice | `ImproperlyConfigured`; names are global — namespace them `"<app>.<use_case>"` |
 | Secrets in `bind()` params | Tokens are signed, not encrypted — params are visible in the page source |
-| Typeahead in content added by your own JS (e.g. new formset rows) stays inert | Call `window.cvTypeahead.init(container)` / `window.cvTypeaheadSelect.init(container)`; crud-views modals are handled automatically |
+| Typeahead in content added by your own JS stays inert | Call `window.cvTypeahead.init(container)` / `window.cvTypeaheadSelect.init(container)`; crud-views modals and crud-views formset rows (≥ 0.3.3 with django-crud-views ≥ 0.29.4) are handled automatically |
+| Picker / typeahead dead in a formset row added with the add button | Upgrade to django-crud-views ≥ 0.29.4 and this package ≥ 0.3.3 (`cv:formset:row-added`); on older versions call the `init` functions yourself |
 | `TypeaheadSelect` popup cut off | It renders inside the widget (so it works in Bootstrap modals); an ancestor with `overflow: hidden` clips it |

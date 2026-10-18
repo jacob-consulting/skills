@@ -89,6 +89,19 @@ fetches an empty row via AJAX from the same view URL; `formset.js` (from `{% cv_
 it — no extra wiring. `can_order=True` on the factory needs `django-ordered-model`
 (`crud_views.E300` otherwise).
 
+**Widgets in added rows** *(since 0.29.4)*: an added row arrives after page load, so scripts that
+initialize on `DOMContentLoaded` never see it. `formset.js` dispatches a bubbling
+`cv:formset:row-added` CustomEvent on each new `div.cv-formset-row` (`detail: {prefix, rows}`);
+nested rows inside a new parent row get no event of their own. Initialize inside `event.target`:
+
+```javascript
+document.addEventListener("cv:formset:row-added", (event) => initMyWidgets(event.target));
+```
+
+Core tooltips and conditional field-groups listen already, as do the django-crud-views-extensions
+widgets (≥ 0.3.3). Before 0.29.4 there is no such event: date pickers, select widgets and tooltips in
+added rows stay inert.
+
 ---
 
 ## Conditional Field-Groups & Conditional FormSets

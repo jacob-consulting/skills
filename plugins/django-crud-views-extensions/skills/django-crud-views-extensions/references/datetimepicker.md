@@ -255,5 +255,6 @@ bundled by pipeline) is fixed by switching to vendored mode.
   attribute on the `<input>`.
 - `init.js` activates every `input[xdsoft-datetime-config]` on document ready, and again whenever
   django-crud-views dispatches `cv:modal:loaded` on `#cv-modal` after injecting modal content — pickers work in
-  crud-views modals without extra code.
+  crud-views modals without extra code. *Since 0.3.3* it also initialises inside every row django-crud-views
+  (≥ 0.29.4) adds to a formset, on the `cv:formset:row-added` event.
 - jQuery must be loaded in the base template before `{% cv_js %}` (same rule as django-crud-views core).

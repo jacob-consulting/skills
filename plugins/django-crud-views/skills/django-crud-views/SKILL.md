@@ -229,6 +229,7 @@ django-guardian, child create views need `GuardianCreateViewPermissionRequired`:
 | `cv_cancel_keys` origin lost after a validation error | An overridden `*.content.html` posts to `request.path`; use `action="{{ request.get_full_path }}"` | form-views.md |
 | `AttributeError: type object '…FormSet' has no attribute 'can_order'` | `FormSet(klass=...)` needs the result of `inlineformset_factory(..., formset=YourInlineFormSet)`, not the `InlineFormSet` subclass; don't put `model`/`fields` on the subclass | forms-and-formsets.md |
 | Formset rows never render | The parent form layout lacks `Formsets()`, or crispy's `form_tag` is still on | forms-and-formsets.md |
+| Date picker / select widget / tooltip dead in a row added with the formset add button | Initialize on `cv:formset:row-added` (since 0.29.4) inside `event.target`; older versions dispatch nothing | forms-and-formsets.md |
 | Polymorphic list offers `"create"` | Use `cv_context_actions = ["create_select"]` | polymorphic.md |
 | Polymorphic create form page: `NoReverseMatch … '<name>-create'` | Package ≤ 0.29.2, or `"create"` added to the polymorphic create view's actions. Upgrade, or set `cv_context_actions = ["home"]` on that view | migration.md |
 | Guardian: users see no objects | Strict mode ignores model-level grants; call `assign_perm`, or set `cv_guardian_accept_global_perms = True` | guardian.md |
