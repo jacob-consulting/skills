@@ -7,7 +7,7 @@
 from crud_views.lib.viewset import ViewSet
 from .models import Author
 
-cv_author = ViewSet(model=Author, name="author", icon_header="fa-regular fa-user")
+cv_author = ViewSet(model=Author, name="author", icon_header="far:user")
 ```
 
 ## 2. Add URL patterns
@@ -91,7 +91,7 @@ class AuthorDetailView(ObjectDetailViewPermissionRequired):
     cv_property_display = [
         {
             "title": "Attributes",
-            "icon": "tag",
+            "icon": "fas:tag",   # icon value; a bare "tag" would be a raw (invisible) class
             "description": "Core author information",
             "properties": [
                 "first_name",
@@ -118,11 +118,7 @@ INSTALLED_APPS = [..., "crud_views_object_detail", "crud_views", ...]
 CRUD_VIEWS_OBJECT_DETAIL_TEMPLATE_PACK_LAYOUT = "split-card"
 CRUD_VIEWS_OBJECT_DETAIL_TEMPLATE_PACK_TYPES = "default"
 
-# Icon library: "bootstrap" (default) or "fontawesome"
-CRUD_VIEWS_OBJECT_DETAIL_ICONS_LIBRARY = "fontawesome"
-# Class/type/prefix default per library (bootstrap: bi / none / bi;
-# fontawesome: fa / regular / fa). Override only if needed:
-# CRUD_VIEWS_OBJECT_DETAIL_ICONS_TYPE = "solid"   # renders fa-solid
+# Icons default to Font Awesome 6 free (load it in your base template); see icons.md
 ```
 
 Per-view layout override: `cv_object_detail_layout = "accordion"`.

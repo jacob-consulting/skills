@@ -1,6 +1,6 @@
 ---
 name: django-crud-views
-description: "Build and debug UIs with the django-crud-views package (crud_views). Use whenever code uses or is being built on it: ViewSet/ParentViewSet wiring, List/Detail/Create/Update/Delete views with django-tables2, django-filter and crispy forms, nested child resources, permissions and per-object Guardian access, django-fsm workflows, formsets, polymorphic create/detail, property grids, non-ORM Resource data (S3, APIs), action menus, static assets with CSP/SRI or django-pipeline, and system checks like viewset.W280. Also when code imports crud_views, crud_views_guardian, crud_views_workflow, crud_views_polymorphic or crud_views_object_detail. Not for DRF, the Django admin, or plain generic views."
+description: "Build and debug UIs with the django-crud-views package (crud_views). Use whenever code uses or is being built on it: ViewSet/ParentViewSet wiring, List/Detail/Create/Update/Delete views with django-tables2, django-filter and crispy forms, nested child resources, permissions and per-object Guardian access, django-fsm workflows, formsets, polymorphic create/detail, property grids, non-ORM Resource data (S3, APIs), action menus, icons (CRUD_VIEWS_ICONS, cv_icon), static assets with CSP/SRI or django-pipeline, and system checks like viewset.W280. Also when code imports crud_views, crud_views_guardian, crud_views_workflow, crud_views_polymorphic or crud_views_object_detail. Not for DRF, the Django admin, or plain generic views."
 ---
 
 # django-crud-views
@@ -11,7 +11,7 @@ subclass registers itself with its ViewSet through `cv_viewset`, and sibling vie
 (`"list"`, `"detail"`, `"update"`, …) to render action buttons and redirects.
 
 Supported: Python ≥ 3.12, tested on 3.12–3.15 (3.15 since 0.29.1) with Django 4.2 / 5.2 / 6.0; Django 4.2 only on
-Python ≤ 3.13, as Django itself requires. This skill describes package **0.29.4**. If the project pins an older
+Python ≤ 3.13, as Django itself requires. This skill describes package **0.30.0**. If the project pins an older
 version, or code mentions names you can't find here, read [references/migration.md](references/migration.md).
 
 ## How to use this skill
@@ -34,6 +34,7 @@ strict mode), and guessing produces code that silently does nothing or fails `ma
 | Polymorphic models (django-polymorphic) | [polymorphic.md](references/polymorphic.md) |
 | FSM workflows (django-fsm-2), transitions, audit log | [workflow.md](references/workflow.md) |
 | Non-ORM data (S3, REST APIs) via `Resource` | [resources.md](references/resources.md) |
+| Icons: `CRUD_VIEWS_ICONS`, `{% cv_icon %}`, `prefix:name` values, Bootstrap Icons / SVG / theme libraries | [icons.md](references/icons.md) |
 | Static assets, CSP nonces, SRI, django-pipeline bundling | [assets.md](references/assets.md) |
 | Base-template override, breadcrumbs | [templates-and-navigation.md](references/templates-and-navigation.md) |
 | All `CRUD_VIEWS_*` settings | [settings.md](references/settings.md) |
@@ -68,8 +69,8 @@ CRUD_VIEWS_EXTENDS = "myapp/crud_views.html"   # required: your base template (c
 The `CRUD_VIEWS_EXTENDS` template is what every crud_views page extends. It must `{% load crud_views %}`, render
 `{% cv_css %}` and `{% cv_js %}` (core JS/CSS and registered bundles) and `{% cv_config %}` (modal shell), and define
 the blocks the views fill — at least `{% block cv_content %}`, typically also `cv_header`, `cv_context` (with
-`{% cv_context_actions object %}`), `cv_paragraph` and `cv_filter`. All other settings are optional:
-[settings.md](references/settings.md).
+`{% cv_context_actions object %}`), `cv_paragraph` and `cv_filter`. It must also load Font Awesome 6 (free), the default icon set, which the package
+does not ship. All other settings are optional: [settings.md](references/settings.md).
 
 ---
 
@@ -116,7 +117,7 @@ from crud_views.lib.viewset import ViewSet
 
 from .models import Author
 
-cv_author = ViewSet(model=Author, name="author", icon_header="fa-regular fa-user")  # pk type auto-detected
+cv_author = ViewSet(model=Author, name="author", icon_header="far:user")  # pk type auto-detected
 
 
 class AuthorTable(Table):
@@ -243,6 +244,8 @@ django-guardian, child create views need `GuardianCreateViewPermissionRequired`:
 | Startup warns `viewset.W280` | A `cv_*` attribute no class recognizes — fix the typo, or allow it via `cv_check_ignore_attributes` | system-checks.md |
 | Startup warns `viewset.W290`, or no `⋯` menu appears | A key in the view's own `cv_*_actions_inline` isn't among its actions; or the project overrides `columns/actions.html` / `tags/context_actions.html` / `tags/card.html` without the `{% if group is None %}` branch | actions-and-buttons.md |
 | Overriding `tags/list_action.html` / `tags/context_action.html` loses the accessible name | Keep `<span class="visually-hidden">{{ cv_action_label }}</span>` and the icon's `aria-hidden="true"`. Prefer that over `aria-label`: same name, and Sonar's `Web:S7927` misreads `aria-label` next to template tags | |
+| Icon invisible (empty `<i class="truck">`, `<i class="fa-regular fa-box">`) | Use `prefix:name` (`fas:truck`): bare unknown names are raw classes, and most FA free icons are solid-only. Custom templates render `cv_icon_action` with `{% cv_icon %}`, not `<i class="…">` (since 0.30.0) | icons.md |
+| Startup fails `crud_views.E350` after upgrading to 0.30.0 | `CRUD_VIEWS_FILTER_ICON` / `ACTIONS_MENU_ICON` / `OBJECT_DETAIL_ICONS_*` are removed; move them into `CRUD_VIEWS_ICONS` | migration.md |
 | `card-rows` detail tooltip never appears | Needs `{% cv_js %}` and Bootstrap's JS; for markup you inject yourself call `cv.initTooltips(root)` | detail-views.md |
 | Signed card ordering link `?order=+name` | `+` decodes to a space; ascending is the bare name `?order=name`; in signed mode `dir` is ignored | lists-and-cards.md |
 | `ImportError: cannot import name 'PrimaryKeys' ... (circular import)` at startup | Package ≤ 0.29.1 and a `models.py` imports `crud_views.lib.viewset` / `crud_views.lib.table` (e.g. a `Resource` using `ViewSet.PK`). Fixed in 0.29.2 — upgrade, or keep that code in `views.py` | migration.md |

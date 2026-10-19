@@ -31,7 +31,7 @@ cv_author = ViewSet(
     pk_name="pk",           # URL parameter name (default "pk")
     parent=ParentViewSet(), # for nested resources
     ordering="-created_dt", # default queryset ordering
-    icon_header="fa-regular fa-user",  # Font Awesome icon for the header
+    icon_header="far:user",  # icon value for the header (icons.md)
     context_buttons=[],     # override default context buttons
     inaccessible_actions=None,     # "hide" | "disable"; None = CRUD_VIEWS_INACCESSIBLE_ACTIONS (since 0.28.0)
     list_actions_inline=None,      # action menus (since 0.28.0): keys kept as buttons; None = setting
@@ -107,7 +107,7 @@ class MyDetailView(ObjectDetailViewPermissionRequired):
     cv_property_display = [
         {
             "title": "Group Title",   # required
-            "icon": "tag",            # optional: short icon name (e.g. "tag", "book")
+            "icon": "fas:tag",        # optional icon value: "prefix:name", semantic name or raw class
             "description": "...",    # optional: subtitle
             "properties": [
                 "field_name",                                   # simple field or @property
@@ -136,9 +136,9 @@ page load and after modal content is injected — *since 0.23.0; before, it neve
 content you inject yourself, call `cv.initTooltips(rootElement)`. The script only touches
 `[data-cv-tooltip]`; your own `[data-bs-toggle="tooltip"]` elements stay yours to initialise.
 
-**Icon libraries** (set via `CRUD_VIEWS_OBJECT_DETAIL_ICONS_LIBRARY`):
-- `"bootstrap"` (default) — icon names follow Bootstrap Icons conventions (`"book"` → `bi bi-book`)
-- `"fontawesome"` — icon names like `"tag"`, `"book"`, `"circle-info"` (builds `fa-regular fa-tag` by default)
+**Group icons** are icon values (*since 0.30.0*, no auto-prefix): `"fas:book"`, `"bi:book"`, a name from
+`CRUD_VIEWS_ICONS`, or a raw class. A bare `"book"` renders an invisible `<i class="book">`. Unknown prefix → `viewset.W246`.
+See [icons.md](icons.md).
 
 **Other exports** from `crud_views_object_detail.lib`: `ObjectDetailMixin`, `ObjectDetailView`,
 `PropertyConfig`, `PropertyGroupConfig`, `LinkConfig`, `BadgeConfig`, and the `x(path, **kwargs)`
@@ -150,9 +150,8 @@ shorthand for `PropertyConfig`.
 `BadgeConfig(color=None, color_map=None, color_fn=None, label_map=None, pill=False)`.
 `PropertyGroupConfig(title, description=None, icon=None, properties=[...])`.
 
-**Icon fonts are not shipped.** `CRUD_VIEWS_OBJECT_DETAIL_ICONS_LIBRARY` only selects which CSS
-class names are emitted (`bi bi-book`, `fa-regular fa-tag`). Loading the Bootstrap Icons or Font
-Awesome stylesheet is the host project's job — e.g. via `register_assets()`.
+**Icon fonts are not shipped.** The registry only emits class names (`fa-solid fa-tag`, `bi bi-book`). Loading
+Font Awesome (default) or Bootstrap Icons is the host project's job, e.g. in the base template or via `register_assets()`.
 
 **Composing:** `PolymorphicDetailView` and `GuardianDetailViewPermissionRequired` are plain detail
 views. Add `ObjectDetailMixin` first in the bases to give them a property grid.
@@ -226,7 +225,7 @@ from crud_views.lib.views.form import CustomFormViewPermissionRequired
 class MyContactView(MessageMixin, CrispyViewMixin, CustomFormViewPermissionRequired):
     cv_key = "contact"                   # unique key — auto-registers URL with the ViewSet
     cv_path = "contact"                  # URL path segment
-    cv_icon_action = "fa-solid fa-envelope"
+    cv_icon_action = "fas:envelope"
     cv_viewset = cv_my
     form_class = MyContactForm
     cv_message_template_code = "Contacted »{{ object }}«"
@@ -254,7 +253,7 @@ class MyActionView(ActionViewPermissionRequired):
     cv_key = "my_action"        # unique key for this view
     cv_path = "my-action"       # URL path segment
     cv_viewset = cv_my
-    cv_icon_action = "fa-solid fa-bolt"
+    cv_icon_action = "fas:bolt"
     cv_message_template_code = "Did the thing to »{{ object }}«"        # success message
     cv_message_template_error_code = "Could not do the thing to »{{ object }}«"  # error message
 
@@ -364,7 +363,7 @@ class RedirectBooksView(RedirectChildView):
     cv_action_label = "Goto Books"
     cv_redirect = "book"         # child viewset name
     cv_redirect_key = "list"
-    cv_icon_action = "fa-regular fa-address-book"
+    cv_icon_action = "far:address-book"
     cv_viewset = cv_author
 ```
 

@@ -28,7 +28,6 @@ CRUD_VIEWS_ORIGIN_PARAM = "cv_from"
 # Filter
 CRUD_VIEWS_FILTER_PERSISTENCE = True                   # store filter state in session
 CRUD_VIEWS_FILTER_PINNED = False                       # True = filter always open, toggle hidden
-CRUD_VIEWS_FILTER_ICON = "fa-solid fa-filter"
 CRUD_VIEWS_FILTER_RESET_BUTTON_CSS_CLASS = "btn btn-secondary"
 
 # Inaccessible actions: "hide" | "disable" (crud_views.E104) — see actions-and-buttons.md
@@ -39,7 +38,10 @@ CRUD_VIEWS_INACCESSIBLE_ACTIONS = "hide"
 CRUD_VIEWS_LIST_ACTIONS_INLINE = None
 CRUD_VIEWS_CONTEXT_ACTIONS_INLINE = None
 CRUD_VIEWS_CARD_ACTIONS_INLINE = None
-CRUD_VIEWS_ACTIONS_MENU_ICON = "fa-solid fa-ellipsis"
+
+# Icons (since 0.30.0) — see icons.md. Merged per key over the defaults (Font Awesome 6 free).
+CRUD_VIEWS_ICONS = {}            # e.g. {"filter": "fas:magnifying-glass", "actions-menu": "fas:bars"}
+CRUD_VIEWS_ICON_LIBRARIES = {}   # prefix -> config; built-ins far, fas, bi
 
 # Default per-row actions for list views
 CRUD_VIEWS_LIST_ACTIONS = ["detail", "update", "delete"]
@@ -64,6 +66,10 @@ CRUD_VIEWS_ASSETS_BUNDLED = False                      # True: cv_js/cv_css emit
 
 `CRUD_VIEWS_THEME` is not a setting; it is ignored and only triggers warning `crud_views.W110`.
 
+Removed in 0.30.0 (error `crud_views.E350` while still defined): `CRUD_VIEWS_FILTER_ICON`,
+`CRUD_VIEWS_ACTIONS_MENU_ICON` (now the `filter` / `actions-menu` entries of `CRUD_VIEWS_ICONS`) and all
+`CRUD_VIEWS_OBJECT_DETAIL_ICONS_*` / `CRUD_VIEWS_OBJECT_DETAIL_NAMED_ICONS` settings.
+
 Manage-view access is granted by `CRUD_VIEWS_MANAGE_VIEWS_ENABLED` ("yes"/"debug_only"/"no") **or** by
 membership in the `CRUD_VIEWS_MANAGE` group (name configurable via `CRUD_VIEWS_MANAGE_GROUP`). The group
 approach grants selective access without changing deployment settings. Per ViewSet,
@@ -76,19 +82,17 @@ CRUD_VIEWS_OBJECT_DETAIL_TEMPLATE_PACK_LAYOUT = "split-card"  # "accordion", "ta
                                                               # "card-rows", "striped-rows",
                                                               # "table-inline", "list-group-3col"
 CRUD_VIEWS_OBJECT_DETAIL_TEMPLATE_PACK_TYPES = "default"
-CRUD_VIEWS_OBJECT_DETAIL_ICONS_LIBRARY = "bootstrap"          # default; or "fontawesome"
-CRUD_VIEWS_OBJECT_DETAIL_PROPERTY_TEXT_NEWLINE = "linebreaksbr"
-
-# The three below default per library — bootstrap: class "bi", no type, prefix "bi";
-# fontawesome: class "fa", type "regular", prefix "fa". Set only to override.
-# CRUD_VIEWS_OBJECT_DETAIL_ICONS_CLASS = "fa"
-# CRUD_VIEWS_OBJECT_DETAIL_ICONS_TYPE = "solid"               # suffix: fa-solid, fa-regular, ...
-# CRUD_VIEWS_OBJECT_DETAIL_ICONS_PREFIX = "fa"
-# CRUD_VIEWS_OBJECT_DETAIL_NAMED_ICONS = {...}                # override the named-icon map
+CRUD_VIEWS_OBJECT_DETAIL_PROPERTY_TEXT_NEWLINE = "linebreaksbr"   # or "linebreaks"
 ```
 
-The icon class is built as `{class}-{type} {prefix}-{name}` (type omitted when None), so
-`ICONS_TYPE` accepts any Font Awesome style suffix.
+Object detail has no icon settings since 0.30.0: it uses the core registry names `boolean-true`, `boolean-false`,
+`property-detail` and `text-icon` (Font Awesome by default). To keep its old Bootstrap Icons look:
+
+```python
+from crud_views.lib.icons import BOOTSTRAP_ICONS
+
+CRUD_VIEWS_ICONS = {k: BOOTSTRAP_ICONS[k] for k in ("boolean-true", "boolean-false", "property-detail", "text-icon")}
+```
 
 ## Reading the settings object
 

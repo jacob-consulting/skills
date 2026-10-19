@@ -1,8 +1,24 @@
 # Upgrading and older package versions
 
-The rest of this skill describes the current package (0.29.4). Read this file when a project pins an
+The rest of this skill describes the current package (0.30.0). Read this file when a project pins an
 older `django-crud-views`, when you are upgrading one, or when code or errors mention names that no
 longer exist. Newest first.
+
+## 0.30.0 — icon registry
+
+Breaking. Icons go through one registry ([icons.md](icons.md)); values are semantic names or `prefix:name`.
+
+| Symptom after upgrading | Change |
+|---|---|
+| Startup error `crud_views.E350` | Removed settings. `CRUD_VIEWS_FILTER_ICON` / `CRUD_VIEWS_ACTIONS_MENU_ICON` → `CRUD_VIEWS_ICONS = {"filter": "fas:filter", "actions-menu": "fas:ellipsis"}`. `CRUD_VIEWS_OBJECT_DETAIL_ICONS_LIBRARY` / `_CLASS` / `_TYPE` / `_PREFIX` / `CRUD_VIEWS_OBJECT_DETAIL_NAMED_ICONS` → gone; object detail defaults to Font Awesome. Old Bootstrap look: `CRUD_VIEWS_ICONS = {k: BOOTSTRAP_ICONS[k] for k in ("boolean-true", "boolean-false", "property-detail", "text-icon")}`; `CRUD_VIEWS_ICONS = BOOTSTRAP_ICONS` switches every icon |
+| Object detail group icons vanished, no check fires | No more auto-prefix: `"icon": "truck"` now renders `<i class="truck">`. Write `"fas:truck"` / `"bi:truck"`, or add `"truck"` to `CRUD_VIEWS_ICONS`. Unknown prefixes warn `viewset.W246` |
+| Custom button/menu template shows no icon | `cv_icon_action`, `cv_icon_header`, `cv_menu_icon` hold icon values, not classes: replace `<i class="{{ cv_icon_action }}">` with `{% load crud_views %}{% cv_icon cv_icon_action %}` |
+| Custom template fails (`TemplateSyntaxError`, `TemplateDoesNotExist`) or renders no icon: it uses `cv_header_icon_class`, `cv_filter_icon_class`, `{% cv_filter_icon %}`, `crud_views/tags/icon.html` or the object detail filters `icon_class` / `named_icon_class` | Removed; use `{% cv_icon value %}` or `render_icon(value)`. `cv_get_filter_icon()` on list/card views is gone: the toggle and panel header both use the `filter` icon |
+| Menu icons misaligned in a custom template using `fa-fw` | Use the library-neutral `cv-icon-fw` from the new core asset `crud_views/css/icons.css`; add it to hand-written CSS lists / pipeline bundles not built with `cv_sources` |
+| Boolean / sort icons look different | Booleans use `boolean-true` / `-false` (circle check / xmark); table sort icons are FA6 `angles-up` / `angles-down`, ascending now points up |
+| Filter toggle showed the wrong icon after reload (up to 0.29.4) | Fixed: it follows the panel state stored in the session |
+
+Raw CSS class strings (`cv_icon_action = "fa-solid fa-envelope"`, no colon) still work unchanged.
 
 ## 0.29.4
 

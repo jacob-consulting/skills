@@ -10,6 +10,19 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+### Added
+- `references/icons.md` (package 0.30.0): the semantic icon registry. Covers the three icon value forms, the default
+  table, `CRUD_VIEWS_ICONS` / `CRUD_VIEWS_ICON_LIBRARIES`, `{% cv_icon %}` / `render_icon`, the `BOOTSTRAP_ICONS`
+  preset, custom renderers, theme registration and the checks E350–E356, W352, W353 and `viewset.W246`. Also a
+  warning that most free Font Awesome icons are solid-only.
+- A 0.30.0 migration section, system-check index rows and two Common Mistakes rows (invisible icons, `E350`).
+
+### Changed
+- The skill now describes package 0.30.0. Removed icon settings (`CRUD_VIEWS_FILTER_ICON`,
+  `CRUD_VIEWS_ACTIONS_MENU_ICON`, `CRUD_VIEWS_OBJECT_DETAIL_ICONS_*`) are dropped from settings.md, the quickstart
+  and the API reference. Examples use `prefix:name` icon values (`far:user`, `fas:tag`, `fas:envelope`). Object detail
+  group icons are no longer auto-prefixed. Action menus use `cv-icon-fw`. The base template must load Font Awesome.
+
 ## [0.15.3] — 2026-10-18
 
 ### Added

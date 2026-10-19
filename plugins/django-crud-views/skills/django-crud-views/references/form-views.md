@@ -68,7 +68,7 @@ class AuthorContactForm(CrispyModelForm):
 class AuthorContactView(MessageMixin, CrispyViewMixin, CustomFormViewPermissionRequired):
     cv_key = "contact"      # unique key — auto-registers URL with the ViewSet
     cv_path = "contact"     # URL path segment
-    cv_icon_action = "fa-solid fa-envelope"
+    cv_icon_action = "fas:envelope"
     cv_viewset = cv_author
     form_class = AuthorContactForm
     cv_message_template_code = "Successfully contacted author »{{ object }}«"
@@ -97,7 +97,7 @@ from crud_views.lib.views import ActionViewPermissionRequired
 class AuthorArchiveView(ActionViewPermissionRequired):
     cv_key = "archive"
     cv_path = "archive"
-    cv_icon_action = "fa-solid fa-box-archive"
+    cv_icon_action = "fas:box-archive"
     cv_viewset = cv_author
     cv_message_template_code = "Archived »{{ object }}«"
     cv_message_template_error_code = "Could not archive »{{ object }}«"

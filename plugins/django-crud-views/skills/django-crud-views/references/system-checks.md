@@ -15,6 +15,10 @@ there rather than at request time.
 | `crud_views.E103` | `CRUD_VIEWS_ORIGIN_PARAM` not matching `^[a-z][a-z0-9_]*$` | [form-views.md](form-views.md) |
 | `crud_views.E104` | `CRUD_VIEWS_INACCESSIBLE_ACTIONS` not `"hide"`/`"disable"` | [actions-and-buttons.md](actions-and-buttons.md) |
 | `crud_views.E105` | `CRUD_VIEWS_*_ACTIONS_INLINE` not `None` or a list of strings | [actions-and-buttons.md](actions-and-buttons.md) |
+| `crud_views.E350` | a removed icon setting (`CRUD_VIEWS_FILTER_ICON`, `…_ACTIONS_MENU_ICON`, `…_OBJECT_DETAIL_ICONS_*`) is still defined | [migration.md](migration.md) |
+| `crud_views.E351` / `E354` / `E355` | icon library misconfigured: renderer not importable / `font` library without valid `class` / config not a dict or bad renderer | [icons.md](icons.md) |
+| `crud_views.E356` | icon value (`CRUD_VIEWS_ICONS`, `cv_icon_action`, `cv_icon_header`) neither str nor `None` | [icons.md](icons.md) |
+| `crud_views.W352` / `W353` | icon value uses an unregistered library prefix (`CRUD_VIEWS_ICONS` / view or ViewSet icon); W352 also flags a name pointing to a name | [icons.md](icons.md) |
 | `crud_views.W110` | `CRUD_VIEWS_THEME` is set — it has no effect | [settings.md](settings.md) |
 | `viewset.E002` / `E003` | ViewSet `name` / `prefix` has an invalid format | — |
 | `viewset.E110` | a view needs a template or `*_template_code` it doesn't have (header, paragraph, action labels — backend-only views still need action labels) | [form-views.md](form-views.md) |
@@ -29,6 +33,7 @@ there rather than at request time.
 | `viewset.E220` | both `cv_polymorphic_include` and `cv_polymorphic_exclude` set | [polymorphic.md](polymorphic.md) |
 | `viewset.E230`–`E235` | workflow view/model misconfigured (`form_class`, labels, `WorkflowModelMixin`, `STATE_CHOICES`, `STATE_BADGES`) | [workflow.md](workflow.md) |
 | `viewset.E240`–`E245` | `cv_property_display` missing or malformed (list of dicts with `title` and `properties`) | [detail-views.md](detail-views.md) |
+| `viewset.W246` | object detail group `icon` uses an unregistered library prefix | [icons.md](icons.md) |
 | `viewset.E250` | `cv_modal_size` not `""`/`"modal-sm"`/`"modal-lg"`/`"modal-xl"` | [form-views.md](form-views.md) |
 | `viewset.E251` | `cv_modal = True` on an unsupported view type | [form-views.md](form-views.md) |
 | `viewset.E252` / `E253` | unregistered key in `cv_cancel_keys` / `cv_success_keys` | [form-views.md](form-views.md) |

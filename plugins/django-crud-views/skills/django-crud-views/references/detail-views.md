@@ -53,7 +53,7 @@ class BookDetailView(ObjectDetailViewPermissionRequired):
     cv_property_display = [
         {
             "title": "Attributes",
-            "icon": "tag",
+            "icon": "fas:tag",                            # icon value (icons.md)
             "description": "Core book information",
             "properties": [
                 "title",                                   # field or @property name

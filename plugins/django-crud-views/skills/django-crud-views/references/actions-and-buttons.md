@@ -238,10 +238,11 @@ class AuthorCardListView(CardListViewPermissionRequired):
 - **POST and modal** items work from the menu (hidden forms stay outside it), in list rows, cards and — since
   0.29.0 — the context toolbar too, inline and in its menu (also for a `ContextButton` whose `key_target` is POST).
   Up to 0.28.0 the toolbar rendered POST actions as GET links (405).
-- **Labels:** menu items show the target's icon (`fa-fw`) and short label (`cv_action_short_label`;
-  `CardAction.label` on cards). A context button's own `label_template[_code]` also sets its short label, so it
+- **Labels:** menu items show the target's icon (`cv-icon-fw`, since 0.30.0; `fa-fw` before) and short label
+  (`cv_action_short_label`; `CardAction.label` on cards). A context button's own `label_template[_code]` also sets its short label, so it
   labels the menu item too. `CardAction.variant` / `flex` / `no_label` apply to inline card buttons only.
-- **Toggle icon:** `CRUD_VIEWS_ACTIONS_MENU_ICON` (default `"fa-solid fa-ellipsis"`). Row menus use Popper's fixed
+- **Toggle icon:** the `actions-menu` icon (default `fas:ellipsis`): `CRUD_VIEWS_ICONS = {"actions-menu": "fas:bars"}`
+  ([icons.md](icons.md); before 0.30.0 `CRUD_VIEWS_ACTIONS_MENU_ICON`). Row menus use Popper's fixed
   strategy, so `.table-responsive` does not clip them. Needs the Bootstrap JS **bundle** (Popper included).
 - **Templates** (overridable): `crud_views/tags/actions_menu.html` (wrapper + list), `actions_menu_toggle.html`
   (toggle only — override it for a split-style caret), `actions_menu_item.html`, `actions_menu_item_label.html`.
