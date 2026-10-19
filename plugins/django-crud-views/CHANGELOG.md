@@ -10,6 +10,8 @@ The plugin version is independent of the `django-crud-views` package it document
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-10-19
+
 ### Added
 - `references/icons.md` (package 0.30.0): the semantic icon registry. Covers the three icon value forms, the default
   table, `CRUD_VIEWS_ICONS` / `CRUD_VIEWS_ICON_LIBRARIES`, `{% cv_icon %}` / `render_icon`, the `BOOTSTRAP_ICONS`
@@ -276,3 +278,4 @@ Initial published release — the `django-crud-views` skill packaged as a Claude
 [0.15.1]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.15.1
 [0.15.2]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.15.2
 [0.15.3]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.15.3
+[0.16.0]: https://github.com/jacob-consulting/skills/releases/tag/django-crud-views--v0.16.0
