@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-10-19
+
 ### Added
 - The `django-crud-views-extensions` plugin: date/time picker and type-ahead select widgets for
   django-crud-views.
@@ -58,3 +60,4 @@ First versioned release of the marketplace itself.
 [1.0.0]: https://github.com/jacob-consulting/skills/releases/tag/marketplace--v1.0.0
 [1.1.0]: https://github.com/jacob-consulting/skills/releases/tag/marketplace--v1.1.0
 [1.2.0]: https://github.com/jacob-consulting/skills/releases/tag/marketplace--v1.2.0
+[1.3.0]: https://github.com/jacob-consulting/skills/releases/tag/marketplace--v1.3.0
